@@ -161,7 +161,7 @@ def update_job(session, job_id: str, **kwargs):
         valid_keys = list(job.__table__.columns.keys())
         kwargs = {k: v for k, v in kwargs.items() if v is not None and k in valid_keys}    
 
-        job_record = session.query(job).filter_by(job_id=job_id).first()
+        job_record = session.query(job).filter_by(job_id=job_id).first().with_for_update()  # Lock the row for update
         if job_record is None:
             raise ValueError(f"Job {kwargs.get('job_id')} not found.")
 
@@ -173,7 +173,7 @@ def update_job(session, job_id: str, **kwargs):
 
 @with_session
 def delete_job(session, job_id, force=False):
-    job_records = session.query(job).filter_by(job_id=job_id)
+    job_records = session.query(job).filter_by(job_id=job_id).with_for_update()
     
     if job_records.count() == 0:
         print(f"Job {job_id} not found.")
@@ -206,11 +206,11 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    wait_time = 7 # Default wait time
-    submitt_job("job_001", "echo 'Hello, World!'", wait_time)
 
-    submitt_job("job_002", "echo 'Hello, World!'", wait_time//2)
-    submitt_job("job_002", "echo 'HelSlo, World!'", wait_time//2)
+    submitt_job("job_001", "echo 'Hello, World!'")
+
+    submitt_job("job_002", "echo 'Hello, World!'")
+    submitt_job("job_002", "echo 'HelSlo, World!'")
     update_job("job_002", state="started")
 
     with SessionLocal() as session:
@@ -221,15 +221,5 @@ if __name__ == "__main__":
         
     for job_id in ["job_001", "job_002"]:
         delete_job(job_id, force=True)
-    # submitt_job("job_003", "echo 'Hello, World!'", wait_time//2)
-    # submitt_job("job_002", "echo 'Hello, World!'", wait_time//2)
-    # print(count_jobs())
-    # print(count_jobs("pending"))
-    # print(count_jobs("finished"))
-    # print(count_jobs("prdak"))
-    # delete_job("job_001",1)
-    # delete_job("job_002")
-    # delete_job("job_003")
-    # delete_job("job_004")
     
     
