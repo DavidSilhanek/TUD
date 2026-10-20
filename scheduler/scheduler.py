@@ -292,7 +292,7 @@ def is_time_allowed(
     # Ensure the task can finish before the allowed interval ends.
     assumed_task_duration = assumed_task_duration if isinstance(assumed_task_duration, pendulum.Duration) else pendulum.duration(seconds=assumed_task_duration)
     latest_start_time = end_datetime - assumed_task_duration
-
+    
     return start_datetime <= current_datetime_time <= latest_start_time
 
 
@@ -363,6 +363,7 @@ class Scheduler:
 
     def run(self):
         """Run the scheduler continuously."""
+        min_wait_time = 0  # Initialize min_wait_time to 0
         while True:
             current_time = pendulum.now()
 
@@ -506,7 +507,7 @@ if __name__ == "__main__":
     }
     
     allowed_times_tasks = {
-        "work_days": (str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59))),  # 9 PM to 6 AM - night time
+        "work_days": (str(pendulum.time(13, 16)), str(pendulum.time(23, 59, 59))),  # 9 PM to 6 AM - night time
         "weekends": (str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59))),  # All day Saturday and Sunday
     }
 
@@ -523,18 +524,10 @@ if __name__ == "__main__":
             time.sleep(log_interval_s)  # Log every log_interval_s seconds
 
     try:
-        # OLD API
-        # task_logger = Task(name="Logger", command=lambda: repeating_logger(log_interval_s=args.log_interval, filepath=args.log_file),
-        #                 assumed_task_duration=pendulum.duration(seconds=1),  # 1 second
-        #                 utilization_limits={}, allowed_times=allowed_times_logger, workload=0)
-        # task_db_logger = Task(name="DB Logger", command=lambda: db_logger(log_interval_s=args.log_interval, filepath=args.log_file),
-        #                 assumed_task_duration=pendulum.duration(seconds=1),  # 1 second
-        #                 utilization_limits={}, allowed_times=allowed_times_logger, workload=0)
-
+        
         PYTHON_TASK_REGISTRY["logger"] = lambda: repeating_logger(log_interval_s=args.log_interval, filepath=args.log_file)
         PYTHON_TASK_REGISTRY["db_logger"] = lambda: db_logger(log_interval_s=args.log_interval)
-        # NEW API
-        # with SessionLocal() as session:
+        
         utilization_logger = JOB(
             job_id="logger",
             command="REGISTRY:logger",  # Indicate that this is a registered Python function SYNAX: "REGISTRY:<function_name>"
@@ -545,7 +538,8 @@ if __name__ == "__main__":
             utilization_limits={},  # No limits for the logger
             workload=0,  # No workload for the logger
         )
-        submit_job(utilization_logger)
+        # TODO: Uncomment the following line to log the utilization metrics
+        # submit_job(utilization_logger)
         
         db_logger_task = JOB(
             job_id="db_logger",
@@ -608,12 +602,6 @@ if __name__ == "__main__":
             
             
         db_to_csv(csv_path="jobs_export.csv")    
-        # time.sleep(5)
-        # for i in range(3):
-        #     update_job(f"job_00{i+1}", state="started", scheduled_on="TSXX")
-        #     db_to_csv(csv_path="jobs_export.csv")    
-        #     time.sleep(5)
-        
         
         scheduler = Scheduler(wait_time=args.wait, allowed_workload=args.allowed_workload)
         scheduler.run()
@@ -628,9 +616,6 @@ if __name__ == "__main__":
             for job_id in job_ids:
                 delete_job(job_id, force=True)
         db_to_csv(csv_path="jobs_export.csv")
-        # scheduler = Scheduler(tasks=[task_logger,])  # Add the same task twice for demonstration
-        # scheduler.run()
-
 
     except KeyboardInterrupt:
         print("\nMachine utilization monitoring stopped.")
