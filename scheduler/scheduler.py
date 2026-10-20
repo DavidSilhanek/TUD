@@ -56,7 +56,8 @@ class JOB(Base):
     __tablename__ = "jobs"
 
     id = Column(Integer, primary_key=True)
-    job_id = Column(String, index=True, unique=True)
+    job_id = Column(String, index=True, unique=True)  # Unique human-readable identifier for the job
+    job_type = Column(String, index=True, default=None)  # The name of the job
     command = Column(String)
     timestamp = Column(DateTime, default=pendulum.now())
     state = Column(String, default="pending")  # pending, started, finished
@@ -82,11 +83,30 @@ class JOB(Base):
     def assumed_duration(self):
         return pendulum.duration(seconds=self.assumed_task_duration) if self.assumed_task_duration is not None else None
     
+    def estimate_duration_from_records(self, machine_name: str) -> float:
+        """Estimate the duration of a task based on historical records."""
+        if machine_name is None:
+            ptint(f"\n\nNo machine name provided. Using assumed duration for task {self.name}: {self.assumed_task_duration} seconds")
+            return self.assumed_task_duration  # Fallback to assumed duration if machine name is not provided
+        with SessionLocal() as session:
+            durations = (
+                session.query(JOB.true_task_duration)
+                .filter(JOB.job_type == self.job_type, JOB.scheduled_on == machine_name, JOB.true_task_duration.isnot(None))
+                .all()
+            )
+            durations = [d[0] for d in durations if d[0] is not None]
+            if durations:
+                print(f"\n\nEstimated duration for task {self.name} based on historical records: {sum(durations) / len(durations):.2f} seconds")
+                return sum(durations) / len(durations)  # Return average duration
+            else:
+                return self.assumed_task_duration  # Fallback to assumed duration if no historical data is availableq
     
     def allowed_to_run(self, utilization: dict, time: pendulum.DateTime) -> bool:
         """Check if the task is allowed to run based on the current time."""
-
-        if not is_time_allowed(time, self.assumed_task_duration, self.allowed_times ):
+        
+        assumed_durtion = self.estimate_duration_from_records(machine_name=utilization.get("machine_name", None))
+        
+        if not is_time_allowed(time, assumed_durtion, self.allowed_times ):
             return False
         
         # check if the current utilization is below the defined limits
@@ -550,6 +570,7 @@ if __name__ == "__main__":
         for i in range(3):
             job = JOB(
                 job_id=f"job_00{i+1}",
+                job_type="type_A",
                 command="echo 'Hello World!'",
                 timestamp=pendulum.now(),
                 assumed_task_duration=356,
@@ -569,6 +590,17 @@ if __name__ == "__main__":
             )
             submit_job(job)
             
+        for i in range(3):
+            job = JOB(
+                job_type="type_A",
+                job_id=f"job_00{i+7}",
+                command="echo 'Hello World!'",
+                timestamp=pendulum.now(),
+                assumed_task_duration=356,
+                allowed_times=allowed_times_tasks,
+                workload=0.6,  # Computational cost of the task
+            )
+            submit_job(job)
             
             
         db_to_csv(csv_path="jobs_export.csv")    
