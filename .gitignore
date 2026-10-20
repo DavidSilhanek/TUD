@@ -13,6 +13,9 @@ ENV/
 utilization/
 mcmc/
 OpenLAB_Data/
+*.lock
+*.csv
+
 
 # Packaging
 build/
