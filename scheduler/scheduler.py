@@ -73,6 +73,7 @@ class JOB(Base):
     workload = Column(Float, default=1)  # Computational cost of the task
     # 
     claimed = Column(Boolean, default=False)  # Indicates if the job has been claimed by a scheduler
+    min_wait_time = Column(Integer, default=0)  # Minimum wait time in seconds before the next iteration
         
     
     @property
@@ -86,7 +87,7 @@ class JOB(Base):
     def estimate_duration_from_records(self, machine_name: str) -> float:
         """Estimate the duration of a task based on historical records."""
         if machine_name is None:
-            ptint(f"\n\nNo machine name provided. Using assumed duration for task {self.name}: {self.assumed_task_duration} seconds")
+            print(f"\n\nNo machine name provided. Using assumed duration for task {self.name}: {self.assumed_task_duration} seconds")
             return self.assumed_task_duration  # Fallback to assumed duration if machine name is not provided
         with SessionLocal() as session:
             durations = (
@@ -391,6 +392,7 @@ class Scheduler:
                         continue
 
                     self.current_workload += task.workload
+                    min_wait_time = max(0, task.min_wait_time) if hasattr(task, 'min_wait_time') else 0
 
                     thread = threading.Thread(
                         target=self._run_task,
@@ -403,7 +405,8 @@ class Scheduler:
                     thread.start()
                     
             self.claime_tasks()  # Attempt to claim more tasks if possible
-            time.sleep(self.wait_time)
+            print(f"WAITING for at least {min_wait_time} seconds before next iteration.")
+            time.sleep(max(self.wait_time, min_wait_time))
 
 def get_machine_utilization(verbose: bool = True) -> dict:
     """Collect machine utilization metrics."""
@@ -562,6 +565,7 @@ if __name__ == "__main__":
                 command="echo 'Hello World!'",
                 timestamp=pendulum.now(),
                 assumed_task_duration=356,
+                min_wait_time=10*(i),  # Minimum wait time of 5 seconds before the next iteration
                 allowed_times=allowed_times_tasks,
                 workload=0.3,  # Computational cost of the task
             )
