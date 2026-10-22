@@ -15,7 +15,8 @@ mcmc/
 OpenLAB_Data/
 *.lock
 *.csv
-
+BIM/
+*.dat
 
 # Packaging
 build/
