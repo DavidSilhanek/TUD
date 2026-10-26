@@ -1,0 +1,54 @@
+ GAXP A1 IDS 0 S   #A10                 TYP 'S' GRP 10 NRQ       111 SPT 1100 IDP A10   !Axis 10
+ GAXP A1 IDS 0 S   #A20-4               TYP 'J' GRP 11 NRQ       112 SPT 1140           !Coupling joint/Tiltmeter    G_NGSX_FT11_BU1100_0
+ GAXP A1 IDS 0 S   #A20-2.6                     GRP 11 NRQ       114 SPT 1170           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A20-0.125           TYP 'J' GRP 41 NRQ         1 SPT 1190           !Axis 20 Joint
+ GAXP A1 IDS 0 S   #A20                 TYP 'S' GRP 41 NRQ         1 SPT 1200 IDP A20   !Axis 20
+ GAXP A1 IDS 0 S   #A20+0.125           TYP 'J' GRP 21 NRQ       212 SPT 1210           !Axis 20 Joint
+ GAXP A1 IDS 0 S   #A20+0.3                     GRP 21 NRQ       212 SPT 1220           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A20+2.6                     GRP 21 NRQ       213 SPT 1230           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A20+3.90                    GRP 21 NRQ       213 SPT 1240           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A20+4                       GRP 21 NRQ       213 SPT 1250           !Measuring point Tiltmeter
+ GAXP A1 IDS 0 S   #A20+7.50                    GRP 21 NRQ       213 SPT 1260           !IEXB Sensor
+ GAXP A1 IDS 0 S   24.3                         GRP 21 NRQ       213 SPT 1280           !Measuring point load test
+ GAXP A1 IDS 0 S   #A30-3.90                    GRP 21 NRQ       213 SPT 1281           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A30-0.79                    GRP 21 NRQ       214 SPT 1290           !Change in reinforcement
+ GAXP A1 IDS 0 S  #A30-0.30                     GRP 21 NRQ       214 SPT 1291           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A30                 TYP 'S' GRP 21               SPT 1300 IDP  A30  !Achse 30
+
+!*!Label PE x.2 - GRP 12,42,22
+ GAXP A2 IDS 0 S   #A10                 TYP 'S' GRP 12 NRQ       121 SPT 2100 IDP A10   !Axis 10
+ GAXP A2 IDS 0 S   #A10+2.0                     GRP 12 NRQ       122 SPT 2110           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20-4.0                     GRP 12 NRQ       122 SPT 2140           !Measuring point Tiltmeter
+ GAXP A2 IDS 0 S   #A20-2.6                     GRP 12 NRQ       124 SPT 2170           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20-0.125           TYP 'J' GRP 42 NRQ         2 SPT 2190           !Axis 20 Joint
+ GAXP A2 IDS 0 S   #A20                 TYP 'S' GRP 42 NRQ         2 SPT 2200 IDP A20   !Axis 20
+ GAXP A2 IDS 0 S   #A20+0.125           TYP 'J' GRP 22 NRQ       222 SPT 2210           !Axis 20 Joint
+ GAXP A2 IDS 0 S   #A20+0.3                     GRP 22 NRQ       222 SPT 2220           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A20+2.6                     GRP 22 NRQ       223 SPT 2230           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20+3.90                    GRP 21 NRQ       213 SPT 2240           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A20+4                       GRP 22 NRQ       223 SPT 2250           !Measuring point Tiltmeter
+ GAXP A2 IDS 0 S   #A20+7.50                    GRP 22 NRQ       223 SPT 2260           !IEXB Sensor
+ GAXP A2 IDS 0 S   24.3                         GRP 22 NRQ       223 SPT 2280           !Measuring point load test
+ GAXP A2 IDS 0 S   #A30-3.90                    GRP 22 NRQ       223 SPT 2281           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A30-0.79                    GRP 22 NRQ       224 SPT 2290           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A30-0.30                    GRP 22 NRQ       224 SPT 2291           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A30                 TYP 'S' GRP 22               SPT 2300 IDP A30   !Axis 30
+
+!*!Label PE x.3 - GRP 13,43,23
+ GAXP A3 IDS 0 S   #A10                 TYP 'S' GRP 13 NRQ       131 SPT 3100 IDP A10   !Axis 10
+ GAXP A3 IDS 0 S   #A10+2.0                     GRP 13 NRQ       132 SPT 3110           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20-4                       GRP 13 NRQ       132 SPT 3140           !Measuring point Tiltmeter
+ GAXP A3 IDS 0 S   #A20-2.6                     GRP 13 NRQ       134 SPT 3170           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20-0.125           TYP 'J' GRP 43 NRQ         3 SPT 3190           !Axis 20  Joint
+ GAXP A3 IDS 0 S   #A20                 TYP 'S' GRP 43 NRQ         3 SPT 3200 IDP A20   !Axis 20
+ GAXP A3 IDS 0 S   #A20+0.125           TYP 'J' GRP 23 NRQ       232 SPT 3210           !Axis 20  Joint
+ GAXP A3 IDS 0 S   #A20+0.3                     GRP 23 NRQ       232 SPT 3220           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A20+2.6                     GRP 23 NRQ       233 SPT 3230           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20+3.90                    GRP 23 NRQ       233 SPT 3240           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A20+4                       GRP 23 NRQ       233 SPT 3250           !Measuring point Tiltmeter
+ GAXP A3 IDS 0 S   #A20+7.50                    GRP 23 NRQ       233 SPT 3260           !IEXB Sensor
+ GAXP A3 IDS 0 S   24.3                         GRP 23 NRQ       233 SPT 3280           !Measuring point load test
+ GAXP A3 IDS 0 S   #A30-3.90                    GRP 23 NRQ       233 SPT 3281           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A30-0.79                    GRP 23 NRQ       234 SPT 3290           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A30-0.30                    GRP 23 NRQ       234 SPT 3291           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A30                 TYP 'S' GRP 23           234 SPT 3300 IDP A30   !Axis 30
