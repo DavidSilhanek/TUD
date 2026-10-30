@@ -8,6 +8,8 @@ venv/
 env/
 ENV/
 
+.bl-send/
+.bl-transfer/
 # 
 *.db
 utilization/
