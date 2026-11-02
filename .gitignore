@@ -43,3 +43,6 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# specials
+scalers.pkl
