@@ -18,10 +18,10 @@ FLT  ID 5 NAME "n_disp.nr" RULE "1140"
 FLT  ID 6 NAME "n_disp.nr" RULE "2140"
 LF   NR (1 3 1)
 LF   NR 100
-LF   NR (202 204 1)
+$LF   NR (202 204 1) !coarse and incomplete vehicle crossing
 LF   NR (301 360 1)
-LF   NR (401 402 1)
-LF   NR (3991 3996 1)
+$LF   NR (401 402 1) !delta T
+$LF   NR (3991 3996 1) !Eigensystems
 LF   NR (4010 4013 1)
 LF   NR (4015 4017 1)
 LF   NR (4020 4021 1)
