@@ -19,9 +19,13 @@ def cleanup():
     files = []
     for pattern in regexps:
         files.extend(glob.glob(pattern))
+    files.append(os.path.join(path,"openLAB_FE-Model.dat"))
+    files.append(os.path.join(path,"openLAB_FE-Model.results"))
+    
     for f in files:
         if os.path.exists(f):
             os.remove(f)
+
 
 atexit.register(cleanup)
 
@@ -34,6 +38,10 @@ def main(args):
 
     # Change to the specified directory
     os.chdir(path)
+    parent_pth = pathlib.Path(path).resolve().parents[1]
+    # copy the basefiles from parent dir
+    shutil.copy2(os.path.join(parent_pth,"openLAB_FE-Model.dat"), os.path.join(path,"openLAB_FE-Model.dat"))
+    shutil.copy2(os.path.join(parent_pth,"openLAB_FE-Model.results"), os.path.join(path,"openLAB_FE-Model.results"))
 
     # Create a clean logfile
     LOGFILE = os.path.join(path, "log.txt")

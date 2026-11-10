@@ -1,7 +1,6 @@
 from typing import Callable
 import threading
 import copy
-from colorama import init
 import psutil
 import platform
 import time
@@ -21,15 +20,16 @@ from warnings import filterwarnings, warn
 from functools import wraps
 
 parser = argparse.ArgumentParser(description="Scheduler Simulation")
-# parser.add_argument("--wait", type=int, default=5, help="Wait time between scheduler s runs in seconds")
-parser.add_argument("--wait", type=int, default=3, help="Wait time between scheduler s runs in seconds")
+parser.add_argument("--wait", type=int, default=15, help="Wait time between scheduler s runs in seconds")
 parser.add_argument("--allowed_workload", type=int, default=1, help="Maximum allowed computational cost for tasks")
-parser.add_argument("--log_interval", type=int, default=10, help="Interval for logging machine utilization in seconds")
+parser.add_argument("--log_interval", type=int, default=60, help="Interval for logging machine utilization in seconds")
 parser.add_argument("--log_file", type=str, default="utilization_log.csv", help="Path to the log file for machine utilization metrics")
+parser.add_argument("--log_db_interval", type=int, default=60, help="Interval for logging machine utilization in seconds")
+parser.add_argument("--log_db_file", type=str, default="jobs_export.csv", help="Path to the log file for machine utilization metrics")
 parser.add_argument("--db_URL", type=str, default="sqlite:///queue.db", help="Database URL for the job queue")
 
-JOB_QUEUE: pathlib.Path = pathlib.Path("queue.json")
-SQLITE_DB: pathlib.Path = pathlib.Path("jobs.db")
+# JOB_QUEUE: pathlib.Path = pathlib.Path("queue.json")
+# SQLITE_DB: pathlib.Path = pathlib.Path("jobs.db")
 # DATABASE_URL = "sqlite:///queue.db"
 DATABASE_URL = parser.parse_args().db_URL  # Use the database URL from command-line arguments
 DB_LOCK = pathlib.Path("queue.db.lock")
@@ -92,7 +92,11 @@ class JOB(Base):
         with SessionLocal() as session:
             durations = (
                 session.query(JOB.true_task_duration)
-                .filter(JOB.job_type == self.job_type, JOB.scheduled_on == machine_name, JOB.true_task_duration.isnot(None))
+                .filter(JOB.job_type == self.job_type, 
+                        JOB.scheduled_on == machine_name, 
+                        JOB.state == "finished",
+                        JOB.true_task_duration.isnot(None)
+                        )
                 .all()
             )
             durations = [d[0] for d in durations if d[0] is not None]
@@ -122,6 +126,7 @@ class JOB(Base):
         self.started_on = pendulum.now()
         update_job(self.job_id, state="running", started_on=self.started_on)
         
+        return_code = 0
         try:
             if "REGISTRY:" in self.command:
                 func_name = self.command.split("REGISTRY:")[1]
@@ -268,32 +273,44 @@ def is_time_allowed(
 
     # Select the appropriate time interval.
     if current_datetime_time.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
-        start_time, end_time = pendulum.parse(allowed_times["weekends"][0]), pendulum.parse(allowed_times["weekends"][1])
+        allowed_intervals = allowed_times["weekends"]
     else:
-        start_time, end_time = pendulum.parse(allowed_times["work_days"][0]), pendulum.parse(allowed_times["work_days"][1])
+        allowed_intervals = allowed_times["work_days"]
+    # if current_datetime_time.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
+    #     start_time, end_time = pendulum.parse(allowed_times["weekends"][0]), pendulum.parse(allowed_times["weekends"][1])
+    # else:
+    #     start_time, end_time = pendulum.parse(allowed_times["work_days"][0]), pendulum.parse(allowed_times["work_days"][1])
+         
 
-    # Combine the current date with the allowed interval boundaries.
-    start_datetime = current_datetime_time.start_of("day").set(
-        hour=start_time.hour,
-        minute=start_time.minute,
-        second=start_time.second,
-    )
-
-    end_datetime = current_datetime_time.start_of("day").set(
-        hour=end_time.hour,
-        minute=end_time.minute,
-        second=end_time.second,
-    )
-
-    # Handle intervals that cross midnight.
-    if end_datetime <= start_datetime:
-        end_datetime = end_datetime.add(days=1)
-
-    # Ensure the task can finish before the allowed interval ends.
-    assumed_task_duration = assumed_task_duration if isinstance(assumed_task_duration, pendulum.Duration) else pendulum.duration(seconds=assumed_task_duration)
-    latest_start_time = end_datetime - assumed_task_duration
+    allowed = False
+    for interval in allowed_intervals:
+        start_time, end_time = pendulum.parse(interval[0]), pendulum.parse(interval[1])
     
-    return start_datetime <= current_datetime_time <= latest_start_time
+        # Combine the current date with the allowed interval boundaries.
+        start_datetime = current_datetime_time.start_of("day").set(
+            hour=start_time.hour,
+            minute=start_time.minute,
+            second=start_time.second,
+        )
+
+        end_datetime = current_datetime_time.start_of("day").set(
+            hour=end_time.hour,
+            minute=end_time.minute,
+            second=end_time.second,
+        )
+
+        # Handle intervals that cross midnight.
+        if end_datetime <= start_datetime:
+            end_datetime = end_datetime.add(days=1)
+
+        # Ensure the task can finish before the allowed interval ends.
+        assumed_task_duration = assumed_task_duration if isinstance(assumed_task_duration, pendulum.Duration) else pendulum.duration(seconds=assumed_task_duration)
+        latest_start_time = end_datetime - assumed_task_duration
+        
+        allowed = (start_datetime <= current_datetime_time <= latest_start_time)
+        if allowed: break
+    
+    return allowed
 
 
 
@@ -363,7 +380,7 @@ class Scheduler:
 
     def run(self):
         """Run the scheduler continuously."""
-        min_wait_time = 0  # Initialize min_wait_time to 0
+        min_wait_time = self.wait_time
         while True:
             current_time = pendulum.now()
 
@@ -372,6 +389,11 @@ class Scheduler:
                 tasks_snapshot = list(self.claimed_tasks)
 
             for task in tasks_snapshot:
+                
+                # task not allowed to run if it exceeds the allowed workload
+                if self.current_workload + task.workload > self.allowed_workload:
+                    continue
+                
                 # Skip tasks that are already running.
                 with self.lock:
                     if task.name in self.running_tasks:
@@ -388,12 +410,8 @@ class Scheduler:
                     if task.name in self.running_tasks:
                         continue
 
-                    # task not allowed to run if it exceeds the allowed workload
-                    if self.current_workload + task.workload > self.allowed_workload:
-                        continue
-
                     self.current_workload += task.workload
-                    min_wait_time = max(0, task.min_wait_time) if hasattr(task, 'min_wait_time') else 0
+                    min_wait_time = max(0, task.min_wait_time) if hasattr(task, 'min_wait_time') else min_wait_time
 
                     thread = threading.Thread(
                         target=self._run_task,
@@ -496,39 +514,32 @@ def log_utilization_to_file(utilization: dict, filename: str = "utilization_log.
             f.write(str.join(",", list(utilization.keys()) + ["\n"]))
         f.write(str.join(",", [str(v) for v in utilization.values()] + ["\n"]))
 
-
 if __name__ == "__main__":
-    init_db()  # Initialize the database and create tables if they don't exist
-    args = parser.parse_args()
+    init_db()  # Ensure the database and tables are initialized
+    args=parser.parse_args() 
     
-    allowed_times_logger = {
-        "work_days": (str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59))),  # 9 PM to 6 AM - night time
-        "weekends": (str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59))),  # All day Saturday and Sunday
-    }
-    
-    allowed_times_tasks = {
-        "work_days": (str(pendulum.time(13, 16)), str(pendulum.time(23, 59, 59))),  # 9 PM to 6 AM - night time
-        "weekends": (str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59))),  # All day Saturday and Sunday
-    }
+    def repeating_db_logger(log_interval_s: int = 60, log_file: str = args.log_db_file):
+        while True:
+            db_to_csv(csv_path=log_file)
+            time.sleep(log_interval_s)  # Log every log_interval_s seconds
 
     
-    def repeating_logger(log_interval_s: int = 5, filepath: str = "utilization_log.csv"):
+    def repeating_logger(log_interval_s: int = 5, log_file: str = "utilization_log.csv"):
         while True:
             utilization = get_machine_utilization(verbose=False)
-            log_utilization_to_file(utilization, filename=filepath)
-            time.sleep(log_interval_s)  # Log every log_interval_s seconds
-   
-    def db_logger(log_interval_s: int = 5, filepath: str = "jobs_export.csv"):
-        while True:
-            db_to_csv(csv_path=filepath)
-            time.sleep(log_interval_s)  # Log every log_interval_s seconds
-
-    try:
-        
-        PYTHON_TASK_REGISTRY["logger"] = lambda: repeating_logger(log_interval_s=args.log_interval, filepath=args.log_file)
-        PYTHON_TASK_REGISTRY["db_logger"] = lambda: db_logger(log_interval_s=args.log_interval)
-        
-        utilization_logger = JOB(
+            log_utilization_to_file(utilization, filename=log_file)
+            time.sleep(log_interval_s)  # Log every 
+    
+    log_file_util = parser.parse_args().log_file.replace('.csv', f'_{platform.node()}.csv')  # Append machine name to log file
+    PYTHON_TASK_REGISTRY["logger"] = lambda: repeating_logger(log_interval_s=args.log_interval, log_file=log_file_util)
+    PYTHON_TASK_REGISTRY["db_logger"] = lambda: repeating_db_logger(log_interval_s=args.log_db_interval, log_file=args.log_db_file)
+    
+    allowed_times_logger = {
+            "work_days": [(str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59)))],  # 9 PM to 6 AM - night time
+            "weekends": [(str(pendulum.time(0, 0)), str(pendulum.time(23, 59, 59)))],  # All day Saturday and Sunday
+    }    
+    
+    utilization_logger = JOB(
             job_id="logger",
             command="REGISTRY:logger",  # Indicate that this is a registered Python function SYNAX: "REGISTRY:<function_name>"
             state="pending",
@@ -538,84 +549,35 @@ if __name__ == "__main__":
             utilization_limits={},  # No limits for the logger
             workload=0,  # No workload for the logger
         )
-        # TODO: Uncomment the following line to log the utilization metrics
-        # submit_job(utilization_logger)
-        
-        db_logger_task = JOB(
-            job_id="db_logger",
-            command="REGISTRY:db_logger",  # Indicate that this is a registered Python function SYNAX: "REGISTRY:<function_name>"
-            state="pending",
-            timestamp=pendulum.now(),
-            assumed_task_duration=1,  # 1 second
-            allowed_times=allowed_times_logger,
-            utilization_limits={},  # No limits for the logger
-            workload=0,  # No workload for the logger
-        )
-        submit_job(db_logger_task)
+    # TODO: Uncomment the following line to log the utilization metrics
+    # submit_job(utilization_logger)
     
-        for i in range(3):
-            job = JOB(
-                job_id=f"job_00{i+1}",
-                command="echo 'Hello World!'",
-                timestamp=pendulum.now(),
-                assumed_task_duration=356,
-                min_wait_time=10*(i),  # Minimum wait time of 5 seconds before the next iteration
-                allowed_times=allowed_times_tasks,
-                workload=0.3,  # Computational cost of the task
-            )
-            submit_job(job)
-            
-        for i in range(3):
-            job = JOB(
-                job_id=f"job_00{i+1}",
-                job_type="type_A",
-                command="echo 'Hello World!'",
-                timestamp=pendulum.now(),
-                assumed_task_duration=356,
-                allowed_times=allowed_times_tasks,
-                workload=0.6,  # Computational cost of the task
-            )
-            submit_job(job)
-            
-        for i in range(3):
-            job = JOB(
-                job_id=f"job_random_{i+1}",
-                command="echo 'Hello World!'",
-                timestamp=pendulum.now(),
-                assumed_task_duration=1000,
-                allowed_times=allowed_times_tasks,
-                workload=0.6,  # Computational cost of the task
-            )
-            submit_job(job)
-            
-        for i in range(3):
-            job = JOB(
-                job_type="type_A",
-                job_id=f"job_00{i+7}",
-                command="echo 'Hello World!'",
-                timestamp=pendulum.now(),
-                assumed_task_duration=356,
-                allowed_times=allowed_times_tasks,
-                workload=0.6,  # Computational cost of the task
-            )
-            submit_job(job)
-            
-            
-        db_to_csv(csv_path="jobs_export.csv")    
-        
-        scheduler = Scheduler(wait_time=args.wait, allowed_workload=args.allowed_workload)
-        scheduler.run()
-        
-        with SessionLocal() as session:
-           
-            job_ids = session.scalars(sqlalchemy.select(JOB.job_id).distinct()).all()
-            print("Current jobs in the database:")
-            print(job_ids)
-            
-            
-            for job_id in job_ids:
-                delete_job(job_id, force=True)
-        db_to_csv(csv_path="jobs_export.csv")
+                
+    db_logger_task = JOB(
+        job_id="db_logger",
+        command="REGISTRY:db_logger",  # Indicate that this is a registered Python function SYNAX: "REGISTRY:<function_name>"
+        state="pending",
+        timestamp=pendulum.now(),
+        assumed_task_duration=1,  # 1 second
+        allowed_times=allowed_times_logger,
+        utilization_limits={},  # No limits for the logger
+        workload=0,  # No workload for the logger
+    )
+    submit_job(db_logger_task)
 
-    except KeyboardInterrupt:
-        print("\nMachine utilization monitoring stopped.")
+    
+    
+    args = parser.parse_args()       
+    scheduler = Scheduler(wait_time=args.wait, allowed_workload=args.allowed_workload)
+    scheduler.run()
+    
+    with SessionLocal() as session:
+        
+        job_ids = session.scalars(sqlalchemy.select(JOB.job_id).distinct()).all()
+        print("Current jobs in the database:")
+        print(job_ids)
+        
+        
+        for job_id in job_ids:
+            delete_job(job_id, force=True)
+    db_to_csv(csv_path="jobs_export.csv")
