@@ -1,0 +1,2362 @@
+!SOFiSTiK Modell openLAB
+!Final State
+
+!+!Chapter 00 Update-Parameter
++PROG TEMPLATE urs:3
+KOPF Steuerungsparameter
+
+!E_FT1 - Youngs Modulus PE 1.x
+!E_FT2 - Youngs Modulus PE 2.x
+!E_CIPC - Youngs Modulus CIPC plate
+!E_a10 - Youngs Modulus abutment wall
+!E_a20 - Youngs Modulus piers axis 20
+!E_CIPC_a20 - Youngs Modulus CIPC node axis 20
+!kz10 - vertical spring stiffness at axis 10 (abutment wall base)
+!kh10 - horizontal (longitudinal) spring stiffness at axis 10
+!kr10 - rotational spring stiffness at axis 10
+!kz20 - vertical spring stiffness at axis 20 (pier base)
+!kh20 - horizontal spring stiffness at axis 20
+!kr20 - rotational spring stiffness at axis 20
+!kz30 - vertical spring stiffness at axis 30 (elastomeric bearing)
+!kh30 - horizontal (longitudinal) spring stiffness at axis 30
+
+
+$----
+
+!f_lpt - transmission length of the prestressing tendons (in the case of immediate bond)
+
+!m_fz - total mass of the heavy vehicle, including the frame
+!l_ach - axle spacing
+!spur - track width
+!b_rad - side length of the square wheel contact area
+!dx_fz - longitudinal offset of the vehicle relative to its target position
+
+$----
+
+#include parameter.dat
+
+ENDE
+
+
+!+!Chapter 01 General Parameter
++PROG TEMPLATE urs:11
+KOPF General Parameters
+
+!Bridge
+STO#L1          15[m]            !Span length 1.x
+STO#L2          15[m]            !Span length 2.x
+STO#A10          0[m]            !Station axis 10
+STO#A20        #L1               !Station axis 20  [m]
+STO#A30        #L1+#L2           !Station axis 30  [m]
+
+STO#L0         0.15*(#L1+#L2)
+
+!Cross-section parameters of a precast element + cast-in-place concrete addition
+
+STO#B_Steg      0.25[m]            !Width of the web
+STO#B_Krag      0.625[m]           !Width of the cantilever arms
+STO#H_Kraga     0.17[m]            !Height of the cantilever outside
+STO#H_Kragi     0.19[m]            !Height of the cantilever inside
+STO#H           0.59[m]            !Height of the beam
+
+!Cast-in-place concrete slab
+STO#HOB          0.09[m]                                !Thickness of the cast-in-place concrete
+
+STO#A_FT         3                                      !Number of precast elements
+
+STO#B_FT         #B_Steg+#B_Krag*2                      !Width of the precast element
+STO#B_Ueb        #A_FT*(#B_FT+0.001)-0.001              !Width of the entire superstructure
+
+sto#ZMAX 2.6
+sto#ZMIN -1
+ENDE
+
+
+!+!Chapter 01 FE-Model generation
+
+!Definition of PE cross-sections
+#define QNR
+   QNR #QNR  MNR #MNR MBW  3   BEZ #BEZ
+                BA    1  !Construction phase 1 precast plant(PP): precast cross-section is activated
+                QPOL  UPZ MNR #MNR
+
+                QP TOP1         0           0             EXP 1 !Ventilation completely given for creep and shrinkage in the PP
+                   1            #B_FT/2     0             EXP 1 !for all following QPs
+                   2            #B_FT/2     #H_Kraga-#HOB
+                   3            #B_Steg/2   #H_Kragi-#HOB
+                   4            #B_Steg/2   #H-#HOB
+
+                QSP    NR     Y      Z       MNR
+                       'TOP1' 0      0       #MNR
+                       'BOT'  0      #H-#HOB #MNR
+
+                RANG 6 'TORS'   TYP OPT          !Torsion-active reinforcement
+
+                RANG 1 'BOT'    TYP MIN          !bottom reinforcement PE
+                RANG 3 'TOPFT'  TYP MIN          !upper reinforcement PE
+                RANG 2 'TOPOB'  TYP MIN MBW 6    !upper reinforcement cast-in-place concrete slab
+                RANG 4 'BUEG'   TYP MIN MBW 4    !stirrup reinforcement
+
+
+                !Longitudinal reinforcement PE:
+                  LET#ytop        #B_FT/2-0.08[m]
+                  LET#ybot        #B_Steg/2-0.025-#DT-(#DB112/2)
+                  LET#ztop        0.03[m]
+                  LET#zbot        #H-#HOB-0.055[m]
+
+                !Top slab:
+                LBEW 'FT1ObenRechts3xd10' YA -#ytop           YE -#B_Steg/2-0.15     ZA #ztop                          ZE #ztop                          D #DFTOben TORS PASS RANG 3 A 3[-]   DIST FULL
+                LBEW 'FT1ObenLinks3xd10'  YA  #ytop           YE  #B_Steg/2+0.15     ZA #ztop                          ZE #ztop                          D #DFTOben TORS PASS RANG 3 A 3[-]   DIST FULL
+                LBEW 'FT1ObenMitte2xd10'  YA  #B_Steg/2-0.04  YE -#B_Steg/2+0.04     ZA #ztop+#DT+#DFTOben             ZE #ztop+#DT+#DFTOben             D #DFTOben TORS AKTI RANG 3 A 2[-]   DIST FULL
+                LBEW 'FT1ObenRechts2xd10' YA -#B_FT/2+0.115   YE -#B_FT/2+0.115+0.45 ZA #ztop+#DT+#DFTOben             ZE #ztop+#DT+#DFTOben             D #DFTOben TORS PASS RANG 3 A 2[-]   DIST FULL
+                LBEW 'FT1ObenLinks2xd10'  YA  #B_FT/2-0.115   YE  #B_FT/2-0.115-0.45 ZA #ztop+#DT+#DFTOben             ZE #ztop+#DT+#DFTOben             D #DFTOben TORS PASS RANG 3 A 2[-]   DIST FULL
+                !Web:
+                LBEW 'FT1MitteStegME2xd10'YA  #B_Steg/2-0.02  YE -#B_Steg/2+0.02     ZA #ztop+0.105                    ZE #ztop+0.105                    D #DFTOben TORS PASS RANG 3 A 2[-]   DIST FULL
+                LBEW 'FT1MitteSteg2xd10'  YA -#ybot           YE  #ybot              ZA #zbot-0.15                     ZE #zbot-0.15                     D #DFTOben TORS PASS RANG 3 A 2[-]   DIST FULL
+                LBEW 'FT1UntenSteg2x10'   YA -#ybot           YE  #ybot              ZA #zbot                          ZE #zbot                          D #DB      TORS AKTI RANG 1 A #AB[-] DIST FULL
+
+                !Shear cuts
+                QS 'SO' TYP STEG ZA #H_Kragi-#HOB+0.01   ZE  #H_Kragi-#HOB+0.01  YA +#B_FT/2   YE -#B_FT/2     MNR #MNR MBW 4  RANG 4  ASB #ASB[cm2/m]
+                QS 'SMO' TYP STEG ZA #H_Kragi-#HOB+0.1   ZE  #H_Kragi-#HOB+0.1   YA +#B_FT/2   YE -#B_FT/2     MNR #MNR MBW 4  RANG 4  ASB #ASB[cm2/m]
+                QS 'SM' TYP STEG ZA #H_Kragi-#HOB+0.2    ZE  #H_Kragi-#HOB+0.2   YA +#B_FT/2   YE -#B_FT/2     MNR #MNR MBW 4  RANG 4  ASB #ASB[cm2/m]
+                QS 'SU' TYP STEG ZA #H-#HOB-0.08         ZE  #H-#HOB-0.08        YA -#B_FT/2   YE +#B_FT/2     MNR #MNR MBW 4  RANG 4  ASB #ASB[cm2/m]
+
+                !Cast-in-place concrete deck
+                BA 40  !Construction phase 40 : = total cross-section (cast-in-place concrete layer is activated in BA 40)
+                QPOL  UPZ MNR 2
+                QP  TOP4                  0         -#HOB   EXP 1.0 !Complete ventilation as there is no coating
+                QP  11                    #B_FT/2   -#HOB   EXP 1.0
+                QP  12                    #B_FT/2   0       EXP 1.0
+                QP  13                    0         0       EXP 0.2 !Ventilation at the bottom, contact with PE
+
+                QSP    NR     Y       Z    MNR
+                       'TOP' 0      -#HOB   2
+                       'BOT4' 0         0   2
+
+                !Longitudinal reinforcement cast-in-place concrete deck
+                let#ztop -#HOB+0.05[m]
+                let#ytop  #B_FT/2-0.05[m]
+
+                !Reinforcement in standard cross-section
+                IF (#QNR==112)|(#QNR==122)|(#QNR==132)|(#QNR==213)|(#QNR==223)|(#QNR==233)
+                LBEW 'F1OB_ObenRechts3x10' YA -#ytop          YE -#ytop+0.40     ZA #ztop ZE #ztop D #DO TORS PASS RANG 2 DIST FULL A 3[-] MBW 6
+                LBEW 'F1OB_ObenLinks3x10'  YA  #ytop          YE  #ytop-0.40     ZA #ztop ZE #ztop D #DO TORS PASS RANG 2 DIST FULL A 3[-] MBW 6
+                LBEW 'F1OB_ObenMitte2x10'  YA  #B_Steg/2-0.06 YE -#B_Steg/2+0.06 ZA #ztop ZE #ztop D #DO TORS PASS RANG 2 DIST FULL A 2[-] MBW 6
+                ENDIF
+
+                !Reinforcement abutment wall axis 10:
+                IF (#QNR==111)|(#QNR==121)|(#QNR==131)
+                LBEW 'F1OB_ZulageAnkerkopfd10x16' YA #B_FT/2-0.075 YE -#B_FT/2+0.075 ZA #ztop ZE #ztop D 16[mm] TORS PASS RANG 2 DIST FULL A 10[-] MBW 6
+                ENDIF
+
+                !Reinforcement axis 20:
+                IF (#QNR==113)|(#QNR==114)|(#QNR==123)|(#QNR==124)|(#QNR==133)|(#QNR==134)|(#QNR==211)|(#QNR==212)|(#QNR==221)|(#QNR==222)|(#QNR==231)|(#QNR==232)
+                LBEW 'F1OB_ZulageAnkerkopfd11x16' YA #B_FT/2-0.075 YE -#B_FT/2+0.075 ZA #ztop ZE #ztop D 16[mm] TORS PASS RANG 2 DIST FULL A 11[-] MBW 6
+                ENDIF
+
+
+                !Reinforcement axis 30
+                IF (#QNR==214)|(#QNR==224)|(#QNR==234)
+                LBEW 'F1OB_Oben14d10 auf alle verteilt'  YA  #B_FT/2-0.075   YE -#B_FT/2+0.075   ZA #ztop ZE #ztop D 10[mm] TORS PASS RANG 2 DIST FULL A 6[-] MBW 6
+                ENDIF
+
+
+                QW IT #IT   !40% adjustment of torsional moments of inertia
+
+#enddef
+
+#define QNRCIPC
+          QNR   #QNR MNR #MNR MBW  3  BEZ #BEZ
+            BA    40  $
+            QPOL  UPZ MNR #MNR
+
+            QP TOP1         0           -#HOB           EXP 1 !Ventilation completely given for creep and shrinkage in the PP
+               1            #B_FT/2     -#HOB           EXP 1 !for all following QPs
+               2            #B_FT/2     #H_Kraga-#HOB
+               3            #B_Steg/2   #H_Kragi-#HOB
+               4            #B_Steg/2   #H-#HOB
+
+            QSP    NR     Y       Z    MNR
+                   'TOP' 0      -#HOB  #MNR
+                   'BOT' 0    #H-#HOB  #MNR
+
+
+
+            RANG 6 'TORS' TYP OPT           !Torsion-active reinforcement
+
+            RANG 1 'BOT'   TYP MIN          !Reinforcement bottom
+            RANG 2 'TOPOB' TYP MIN MBW 6    !Reinforcement top
+            RANG 4 'BUEG'  TYP MIN MBW 4    !Stirrups
+
+            let#ztop -#HOB+0.05[m]
+            let#ytop  #B_FT/2-0.05[m]
+
+            LBEW 'STOben'           YA -#ytop   YE #ytop     ZA #ztop          ZE #ztop          D #DStuetz TORS PASS RANG 2 A #AStuetz[-] DIST FULL  MBW 6
+            LBEW 'STOben2xd8'       YA  0.11[m] YE -0.11[m]  ZA 0.13[m]        ZE 0.13[m]        D 8[mm]    TORS PASS RANG 1 A 2[-] DIST FULL
+            LBEW 'STMitteSteg2xd8'  YA  0.11[m] YE -0.11[m]  ZA 0.13+0.15[m]   ZE 0.13+0.15[m]   D 8[mm]    TORS PASS RANG 1 A 2[-] DIST FULL
+            LBEW 'STUntenSteg2xd8'  YA  0.11[m] YE -0.11[m]  ZA 0.13+2*0.15[m] ZE 0.13+2*0.15[m] D 8[mm]    TORS PASS RANG 1 A 2[-] DIST FULL
+
+            !Shear cuts
+            QS 'SO'  TYP STEG ZA #H_Kragi-#HOB+0.01   ZE  #H_Kragi-#HOB+0.01  YA +#B_FT/2   YE -#B_FT/2  MNR #MNR  MBW 4  RANG 4 ASB #ASB[cm2/m]
+            QS 'SMO' TYP STEG ZA #H_Kragi-#HOB+0.1    ZE  #H_Kragi-#HOB+0.1   YA +#B_FT/2   YE -#B_FT/2  MNR #MNR  MBW 4  RANG 4 ASB #ASB[cm2/m]
+            QS 'SM'  TYP STEG ZA #H_Kragi-#HOB+0.2    ZE  #H_Kragi-#HOB+0.2   YA +#B_FT/2   YE -#B_FT/2  MNR #MNR  MBW 4  RANG 4 ASB #ASB[cm2/m]
+            QS 'SU'  TYP STEG ZA #H-#HOB-0.08         ZE  #H-#HOB-0.08        YA -#B_FT/2   YE +#B_FT/2  MNR #MNR  MBW 4  RANG 4 ASB #ASB[cm2/m]
+
+            QW IT #IT   !40% adjustment of torsional moments of inertia
+            QW MNR #MNR FAKE #EOBVERGUSS
+#enddef
+
+!Calculation of effective width PEs
+#define MBW
+
+                LET#l0_S      0.15*(#L1+#L2)       ; PRT#l0_S         ![m] Distance moment zero points
+                LET#b1        #B_Krag              ; PRT#b1           ![m] width of cantilever
+                LET#beff_1   0.2*#b1+0.1*#l0_S     ; PRT#beff_i1
+
+                If (#beff_1 > 0.2*#l0_S)
+                    LET#beff_1 0.2*#l0_S
+                Elseif (#beff_1 >= #b1)
+                     #beff_1 #b1
+                Endif                              ; PRT#beff_1       !Check
+
+            !Covering the non-effective areas
+                NEFF       YMIN=[m]                    ZMIN=[m]        YMAX=[m]            ZMAX=[m]   TYPE
+                        (#B_Steg)/2+#beff_1             -#H               10                   #H         Z
+                       ((#B_Steg)/2+#beff_1)*-1         -#H              -10                   #H         Z
+#enddef
+
+!Calculation of effective width cast-in-place concrete cross-sections
+#define MBWCIPC
+
+                Let#l0_S      0.15*(#L1+#L2)       ; prt#l0_S         ![m] Distance moment zero points
+                Let#b1        #B_Krag              ; prt#b1           ![m] width of cantilever
+                Let#beff_1   0.2*#b1+0.1*#l0_S     ; prt#beff_i1
+
+                If (#beff_1 > 0.2*#l0_S)
+                    Let#beff_1 0.2*#l0_S
+                Elseif (#beff_1 >= #b1)
+                     #beff_1 #b1
+                Endif                              ; prt#beff_1 !Kontrolle
+
+            !Covering the non-effective areas
+                NEFF       YMIN=[m]                    ZMIN=[m]        YMAX=[m]            ZMAX=[m]     TYPE
+                        (#B_Steg)/2+#beff_1             -#HOB               10                 #H         Z
+                       ((#B_Steg)/2+#beff_1)*-1         -#HOB              -10                 #H         Z
+
+
+#enddef
+
+#define QNRPier
+            QNR #QNR MNR 8 MBW 3 BTYP BEAM BEZ #BEZ
+            LET#bS 0.25[m]
+            LET#h  0.20[m]
+
+                !Definition of geometry point
+                QSP NR  Y=[m]               Z=[m]   MNR=0
+                    M   0                   0
+                    OR  #bS/2               #h/2
+                    UR  #bS/2               -#h/2
+                    UL  -#bS/2              -#h/2
+                    OL  -#bS/2               #h/2
+
+                 QSP    NR     Y      Z        MNR
+                       'TOP'   0      -#h/2    8
+                       'BOT'   0      #h/2     8
+
+                !Definition of polygonal cross-section
+                QPOL U
+                QP  NR  Y=[m]        Z=[m]      REFP
+                    51  0            0          OR
+                    52  0            0          UR
+                    53  0            0          UL
+                    54  0            0          OL
+
+            RANG 7 'Pier' TYP MIN
+
+                              LET#ytop        #bS/2-0.02-0.008-#DStuetze/2
+                              LET#ybot       -#bS/2+0.02+0.008+#DStuetze/2
+                              LET#ztop        #h/2-0.02-0.008-#DStuetze/2
+                              LET#zbot       -#h/2+0.02+0.008+#DStuetze/2
+
+                             IF #QNR==4                  !Reinforcement Pier 1
+                             LBEW  YA #ytop YE #ybot ZA #ztop ZE #ztop D 10[mm] TORS AKTI RANG 7 DIST FULL A 5[-] MBW 3
+                             LBEW  YA #ytop YE #ybot ZA #zbot ZE #zbot D 10[mm] TORS AKTI RANG 7 DIST FULL A 5[-] MBW 3
+                             ENDIF
+
+                             IF (#QNR==5)|(#QNR==6)      !Reinforcement Pier 2 & 3
+                             BEW Y #ytop   Z #ztop  RANG 7 TORS AKTI D #DStuetze
+                             BEW Y #ybot   Z #ztop  RANG 7 TORS AKTI D #DStuetze
+                             BEW Y #ybot   Z #zbot  RANG 7 TORS AKTI D #DStuetze
+                             BEW Y #ytop   Z #zbot  RANG 7 TORS AKTI D #DStuetze
+                             ENDIF
+#enddef
+
++PROG AQUA URS:1
+KOPF Materials and Cross-sections
+ECHO VOLL VOLL
+ECHO QUER EXTR
+NORM DC DIN NDC EN199X-200X-Bridge CAT B      !according to Eurocode 2
+
+!*!Label Materials
+!Concrete - updated concrete compression strengths based on material tests.
+$BETO NR 1 ART C FCN 31R EC #E_FT1 FCT 3.03 FCTK 2.12  BEZ "PE span 1"                       !Pre-cast elements span 1
+$ARBL EPS GEBR
+$ARBL EPS  0.181 SIG   0     TYP POL
+$ARBL EPS  0.091 SIG   3.03  TYP POL
+$ARBL EPS  0.000 SIG   0     TYP POL
+$ARBL EPS -0.550 SIG -17.10  TYP SPL
+$ARBL EPS -1.099 SIG -29.67  TYP SPL
+$ARBL EPS -1.649 SIG -37.44  TYP SPL
+$ARBL EPS -2.198 SIG -40.10  TYP SPL
+$ARBL EPS -3.500 SIG -24.06  TYP SPL
+$MEXT 1 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+$#include material_1.dat
+
+#include material_11.dat
+#include material_111.dat
+#include material_12.dat
+#include material_13.dat
+
+$BETO NR 7 ART C FCN 56R EC #E_FT2 FCT 4.29 FCTK 3.00  BEZ "PE span 2"                       !Pre-cast elements span 2
+$ARBL EPS GEBR
+$ARBL EPS  0.222 SIG   0     TYP POL
+$ARBL EPS  0.111 SIG   4.29  TYP POL
+$ARBL EPS  0.000 SIG   0     TYP POL
+$ARBL EPS -0.640 SIG -24.44  TYP SPL
+$ARBL EPS -1.280 SIG -44.92  TYP SPL
+$ARBL EPS -1.920 SIG -59.65  TYP SPL
+$ARBL EPS -2.561 SIG -65.60  TYP SPL
+$ARBL EPS -3.098 SIG -59.82  TYP SPL
+$MEXT 7 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+$#include material_7.dat
+
+#include material_221.dat
+#include material_222.dat
+#include material_223.dat
+
+
+$BETO NR 2 ART C FCN 34N EC #E_CIPC FCT 3.23 FCTK 2.26  BEZ "CIPC beam elements"             !Cast-in-place concrete (CIPC) beam elements
+$ARBL EPS GEBR
+$ARBL EPS  0.189 SIG   0     TYP POL
+$ARBL EPS  0.094 SIG   3.23  TYP POL
+$ARBL EPS  0.000 SIG   0     TYP POL
+$ARBL EPS -0.563 SIG -18.13  TYP SPL
+$ARBL EPS -1.126 SIG -31.76  TYP SPL
+$ARBL EPS -1.690 SIG -40.38  TYP SPL
+$ARBL EPS -2.253 SIG -43.40  TYP SPL
+$ARBL EPS -3.500 SIG -26.53  TYP SPL
+$MEXT 2 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+#include material_2.dat
+
+
+$BETO NR 9 ART C FCN 48R EC #E_a10 FCT 4.04 FCTK 2.83 BEZ "CIPC abutment wall axis 10"      !Cast-in-place concrete abutment wall
+$MEXT 9 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+#include material_9.dat
+
+$BETO NR 8 ART C FCN 46R EC #E_a20 FCT 3.83 FCTK 2.68  BEZ "CIPC piers axis 20"             !Cast-in-place concrete piers and connection superstructure axis 20
+$ARBL EPS GEBR
+$ARBL EPS  0.210 SIG   0     TYP POL
+$ARBL EPS  0.105 SIG   3.83  TYP POL
+$ARBL EPS  0.000 SIG   0     TYP POL
+$ARBL EPS -0.601 SIG -21.14  TYP SPL
+$ARBL EPS -1.203 SIG -37.97  TYP SPL
+$ARBL EPS -1.804 SIG -49.34  TYP SPL
+$ARBL EPS -2.405 SIG -53.60  TYP SPL
+$ARBL EPS -3.500 SIG -34.62  TYP SPL
+$MEXT 8 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+#include material_8.dat
+
+$BETO NR 10 ART C FCN 46R EC #E_CIPC_a20  FCT 3.83 FCTK 2.68 BEZ "CIPC node axis 20"
+$ARBL EPS GEBR
+$ARBL EPS  0.210 SIG   0     TYP POL
+$ARBL EPS  0.105 SIG   3.83  TYP POL
+$ARBL EPS  0.000 SIG   0     TYP POL
+$ARBL EPS -0.601 SIG -21.14  TYP SPL
+$ARBL EPS -1.203 SIG -37.97  TYP SPL
+$ARBL EPS -1.804 SIG -49.34  TYP SPL
+$ARBL EPS -2.405 SIG -53.60  TYP SPL
+$ARBL EPS -3.500 SIG -34.62  TYP SPL
+$MEXT 10 TYP EIGE VAL1 1 VAL2 1 VAL3 1 VAL4 1 VAL5 1 VAL6 1
+#include material_10.dat
+
+
+$BETO NR 5 ART C FCN 34N EC #E_CIPC GAM 0 FCT 3.23 FCTK 2.26 BEZ "Plate elements"           !Plate element
+$MEXT 5 TYP EIGE VAL1 0 VAL2 0 VAL3 0 VAL4 0 VAL5 0 VAL6 0
+#include material_5.dat
+
+!Reinforcement Steel
+STAH NR 3 ART B GUET 500B BEZ "Reinforcement PEs"          !Longitudinal reinforcement PEs
+STAH NR 4 ART B GUET 500B BEZ "Stirrups"                   !Stirrups
+STAH NR 6 ART B GUET 500B BEZ "Reinforcement CIPC"         !Longitudinal reinforcement Cast-in-place concrete
+
+!Prestressing steel
+STAH NR 20 ART Y GUET 1860 FT 1860 ES 193000 FY 1660 REL1 2.0 REL2 1.0 BEZ "Pre-stressing steel immediate bond"   !Prestressing steel St1660/1860 immediate bond
+STAH NR 21 ART Y GUET 1860 FT 1860 ES 195000 FY 1600 REL1 2.0 REL2 1.0 BEZ "Pre-stressing steel subsequent bond"         !Prestressing steel S1660/1860 subsequent bond
+
+LET#IT -0.4
+LET#EOBVERGUSS 1
+
+!Torsion:
+LET#DT 10[mm]
+
+!Upper reinforcement PE (all equal)
+LET#DFToben 10[mm]
+LET#AFToben 8[mm]
+
+!PE 1.1
+!Reinforcement cast-in-place concrete deck
+let#DO111 10[mm];   let#DO112 10[mm];      let#DO113 10[mm];     let#DO114 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB111 10[mm];   let#DB112 10[mm];      let#DB113 10[mm];     let#DB114 10[mm]
+let#AB111 2 ;   let#AB112 2 ;      let#AB113 2 ;     let#AB114  2
+
+!PE 1.2
+!Reinforcement cast-in-place concrete deck
+let#DO121 10[mm];   let#DO122 10[mm];      let#DO123 10[mm];     let#DO124 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB121 10[mm];   let#DB122 10[mm];      let#DB123 10[mm];     let#DB124 10[mm]
+let#AB121 2 ;   let#AB122 2 ;      let#AB123 2 ;     let#AB124  2
+
+!PE 1.3
+!Reinforcement cast-in-place concrete deck
+let#DO131 10[mm];   let#DO132 10[mm];      let#DO133 10[mm];     let#DO134 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB131 16[mm];   let#DB132 16[mm];      let#DB133 16[mm];     let#DB134 16[mm]
+let#AB131 3 ;   let#AB132 3 ;      let#AB133 3 ;     let#AB134  3
+
+!PE 2.1
+!Reinforcement cast-in-place concrete deck
+let#DO211 10[mm];   let#DO212 10[mm];      let#DO213 10[mm];     let#DO214 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB211 10[mm];   let#DB212 10[mm];      let#DB213 10[mm];     let#DB214 10[mm]
+let#AB211 2 ;   let#AB212 2 ;      let#AB213 2 ;     let#AB214  2
+
+!PE 2.2
+!Reinforcement cast-in-place concrete deck
+let#DO221 10[mm];   let#DO222 10[mm];      let#DO223 10[mm];     let#DO224 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB221 10[mm];   let#DB222 10[mm];      let#DB223 10[mm];     let#DB224 10[mm]
+let#AB221 2 ;   let#AB222 2 ;      let#AB223 2 ;     let#AB224  2
+
+!PE 2.3
+!Reinforcement cast-in-place concrete deck
+let#DO231 10[mm];   let#DO232 10[mm];      let#DO233 10[mm];     let#DO234 10[mm]
+
+!Longitudinal Reinforcement PE
+let#DB231 12[mm];   let#DB232 12[mm];      let#DB233 12[mm];     let#DB234 12[mm]
+let#AB231 2 ;   let#AB232 2 ;      let#AB233 2 ;     let#AB234  2
+
+!Shear reinforcement
+let#ASB 0
+
+!Reinforcement cast-in-place concrete connection superstructure-piers
+!Pier 1
+LET#DStuetz1 16[mm]
+LET#AStuetz1 11[mm]
+!Pier 2
+LET#DStuetz2 16[mm]
+LET#AStuetz2 11[mm]
+!Pier 3
+LET#DStuetz3 16[mm]
+LET#AStuetz3 11[mm]
+
+!Longitudinal reinforcement piers
+let#DStuetze1 10[mm]
+let#DStuetze2 14[mm]
+let#DStuetze3 16[mm]
+
+!*!Label  PE 1.1
+
+!Axis 10 - Abutment wall
+let#QNR 111
+let#MNR 1
+let#BEZ 'Q111 PE + CIPC w/o effective width'
+let#AB #AB111
+let#DB #DB111
+let#DO #DO111
+#include QNR
+
+!Standard cross-section
+let#QNR 112
+$let#MNR 1
+let#MNR 11
+let#BEZ 'Q112 PE + CIPC w/o effective width'
+let#AB #AB112
+let#DB #DB112
+let#DO #DO112
+#include QNR
+
+!Axis 20 - Piers
+let#QNR 113
+let#MNR 1
+let#BEZ 'Q113 PE + CIPC w/o effective width'
+let#AB #AB113
+let#DB #DB113
+let#DO #DO113
+#include QNR
+
+let#QNR 114
+let#MNR 1
+let#BEZ 'Q114 PE + CIPC w effective width'
+let#AB #AB114
+let#DB #DB114
+let#DO #DO114
+#include QNR
+#include MBW
+
+!*!Label PE 1.2
+!Axis 10 - Abutment wall
+let#QNR 121
+let#MNR 1
+let#BEZ 'Q121 PE + CIPC w/o effective width'
+let#AB #AB121
+let#DB #DB121
+let#DO #DO121
+#include QNR
+
+!Standard cross-section
+let#QNR 122
+$let#MNR 1
+let#MNR 12
+let#BEZ 'Q122 PE + CIPC w/o effective width'
+let#AB #AB122
+let#DB #DB122
+let#DO #DO122
+#include QNR
+
+!Axis 20 - Piers
+let#QNR 123
+let#MNR 1
+let#BEZ 'Q123 PE + CIPC w/o effective width'
+let#AB #AB123
+let#DB #DB123
+let#DO #DO123
+#include QNR
+
+let#QNR 124
+let#MNR 1
+let#BEZ 'Q124 PE + CIPC w effective width'
+let#AB #AB124
+let#DB #DB124
+let#DO #DO124
+#include QNR
+#include MBW
+
+
+
+!*!Label PE 1.3
+!Axis 10 - Abutment wall
+let#QNR 131
+let#MNR 1
+let#BEZ 'Q131 PE + CIPC w/o effective width'
+let#AB #AB131
+let#DB #DB131
+let#DO #DO131
+#include QNR
+
+!Standard cross-section
+let#QNR 132
+$let#MNR 1
+let#MNR 13
+let#BEZ 'Q132 PE + CIPC w/o effective width'
+let#AB #AB132
+let#DB #DB132
+let#DO #DO132
+#include QNR
+
+!Axis 20 - Piers
+let#QNR 133
+let#MNR 1
+let#BEZ 'Q133 PE + CIPC w/o effective width'
+let#AB #AB133
+let#DB #DB133
+let#DO #DO133
+#include QNR
+
+let#QNR 134
+let#MNR 1
+let#BEZ 'Q134 PE + CIPC w effective width'
+let#AB #AB134
+let#DB #DB134
+let#DO #DO134
+#include QNR
+#include MBW
+
+!*!Label  CIPC conncection superstrcuture-piers
+!PEs x.1
+
+let#QNR 1
+let#MNR 10
+let#BEZ 'CIPC Node Pier 1'
+let#AStuetz #AStuetz1
+let#DStuetz #DStuetz1
+#include QNRCIPC
+#include MBWCIPC
+
+
+!PEs x.2
+let#QNR 2
+let#MNR 10
+let#BEZ 'CIPC Node Pier 2'
+let#AStuetz #AStuetz2
+let#DStuetz #DStuetz2
+#include QNRCIPC
+#include MBWCIPC
+
+!PEs x.3
+let#QNR 3
+let#MNR 10
+let#BEZ 'CIPC Node Pier 3'
+let#AStuetz #AStuetz3
+let#DStuetz #DStuetz3
+#include QNRCIPC
+#include MBWCIPC
+
+!*!Label PE 2.1
+
+!Axis 20 - Piers
+let#QNR 211
+let#MNR 7
+let#BEZ 'Q211 PE + CIPC w effective width'
+let#AB #AB211
+let#DB #DB211
+let#DO #DO211
+#include QNR
+#include MBW
+
+
+let#QNR 212
+let#MNR 7
+let#BEZ 'Q212 PE + CIPC w/o effective width'
+let#AB #AB212
+let#DB #DB212
+let#DO #DO212
+#include QNR
+
+!Standard cross-section
+let#QNR 213
+$let#MNR 7
+let#MNR 221
+let#BEZ 'Q213 PE + CIPC w/o effective width'
+let#AB #AB213
+let#DB #DB213
+let#DO #DO213
+#include QNR
+
+!Axis 30
+let#QNR 214
+let#MNR 7
+let#BEZ 'Q214 PE + CIPC w/o effective width'
+let#AB #AB214
+let#DB #DB214
+let#DO #DO214
+#include QNR
+
+
+!*!Label PE 2.2
+!Axis 20 - Piers
+let#QNR 221
+let#MNR 7
+let#BEZ 'Q221 PE + CIPC w effective width'
+let#AB #AB221
+let#DB #DB221
+let#DO #DO221
+#include QNR
+#include MBW
+
+
+let#QNR 222
+let#MNR 7
+let#BEZ 'Q222 PE + CIPC w/o effective width'
+let#AB #AB222
+let#DB #DB222
+let#DO #DO222
+#include QNR
+
+!Standard cross-section
+let#QNR 223
+$let#MNR 7
+let#MNR 222
+let#BEZ 'Q223 PE + CIPC w/o effective width'
+let#AB #AB223
+let#DB #DB223
+let#DO #DO223
+#include QNR
+
+!Axis 30
+let#QNR 224
+let#MNR 7
+let#BEZ 'Q224 PE + CIPC w/o effective width'
+let#AB #AB224
+let#DB #DB224
+let#DO #DO224
+#include QNR
+
+!*!Label PE 2.3
+!Axis 20 - Piers
+let#QNR 231
+let#MNR 7
+let#BEZ 'Q231 PE + CIPC w effective width'
+let#AB #AB231
+let#DB #DB231
+let#DO #DO231
+#include QNR
+#include MBW
+
+
+let#QNR 232
+let#MNR 7
+let#BEZ 'Q232 PE + CIPC w/o effective width'
+let#AB #AB232
+let#DB #DB232
+let#DO #DO232
+#include QNR
+
+!Standard cross-section
+let#QNR 233
+$let#MNR 7
+let#MNR 223
+let#BEZ 'Q233 PE + CIPC w/o effective width'
+let#AB #AB233
+let#DB #DB233
+let#DO #DO233
+#include QNR
+
+!Axis 30
+let#QNR 234
+let#MNR 7
+let#BEZ 'Q234 PE + CIPC w/o effective width'
+let#AB #AB234
+let#DB #DB234
+let#DO #DO234
+#include QNR
+
+
+!*!Label  Piers
+LET#QNR 4
+LET#BEZ 'Pier 1 Q4'
+LET#DStuetze #DStuetze1
+#include QNRPier
+
+let#QNR 5
+let#BEZ 'Pier 2 Q5'
+let#DStuetze #DStuetze2
+#include QNRPier
+
+let#QNR 6
+let#BEZ 'Pier 3 Q6'
+let#DStuetze #DStuetze3
+#include QNRPier
+
+ENDE
+
+
++PROG SOFIMSHC URS:2
+KOPF System Generation
+SYST 3D GDIV 100000 GDIR POSZ
+ECHO GEOM EXTR
+ECHO SYST EXTR
+STEU TOPO GAXP 3 !Generation of structure points and structure lines along the main/secondary axis
+STEU MESH 1      !Meshing of beam and plate elements
+STEU HMIN .5     !max mesh size
+
+!*!Label Beam elements
+
+!Definition of the main axes span 1 and 2 - one axis for each T-beam
+GAX A1 TYP LANE BEZ "Axis PE x.1"
+ GAXA S 0 X 0 Y -#B_FT SX 1 SY 0 L #A30
+
+GAX A2 TYP LANE BEZ "Axis PE x.2"
+ GAXA S 0 X 0 Y  0 SX 1 SY 0  L #A30
+
+GAX A3 TYP LANE BEZ "Axis PE x.3"
+ GAXA S 0 X 0 Y #B_FT SX 1 SY 0  L #A30
+
+
+!Definition of Placements along bridge axes
+!*!Label PE x.1 - GRP 10,11,41,21
+ GAXP A1 IDS 0 S   #A10                 TYP 'S' GRP 10 NRQ       111 SPT 1100 IDP A10   !Axis 10
+ GAXP A1 IDS 0 S   #A10+0.225                   GRP 10 NRQ       111 SPT 1110           !Support
+ GAXP A1 IDS 0 S   #A10+2                       GRP 10 NRQ       112 SPT 1120           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A20-4               TYP 'J' GRP 11 NRQ       112 SPT 1140           BEZ 'G_NGSX_FT11_BU1100_0+G_NGSY_FT11_BU1100_0' !Coupling joint/Tiltmeter    G_NGSX/Y_FT11_BU1100_0
+ GAXP A1 IDS 0 S   #A20-2.6                     GRP 11 NRQ       114 SPT 1170           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A20-0.1             TYP 'J' GRP 41 NRQ         1 SPT 1190           !Axis 20 Joint
+ GAXP A1 IDS 0 S   #A20                 TYP 'S' GRP 41 NRQ         1 SPT 1200 IDP A20   !Axis 20
+ GAXP A1 IDS 0 S   #A20+0.1             TYP 'J' GRP 21 NRQ       212 SPT 1210           !Axis 20 Joint
+ GAXP A1 IDS 0 S   #A20+0.3                     GRP 21 NRQ       212 SPT 1220           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A20+2.6                     GRP 21 NRQ       213 SPT 1230           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A20+3.90                    GRP 21 NRQ       213 SPT 1240           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A20+4                       GRP 21 NRQ       213 SPT 1250           BEZ 'G_NGSX_FT21_BU0400_0+G_NGSY_FT21_BU0400_0' !Measuring point Tiltmeter
+ GAXP A1 IDS 0 S   #A20+7.50                    GRP 21 NRQ       213 SPT 1260           !IEXB Sensor
+ GAXP A1 IDS 0 S   24.3                         GRP 21 NRQ       213 SPT 1280           !Measuring point load test
+ GAXP A1 IDS 0 S   #A30-3.90                    GRP 21 NRQ       213 SPT 1281           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A30-0.79                    GRP 21 NRQ       214 SPT 1290           !Change in reinforcement
+ GAXP A1 IDS 0 S   #A30-0.30                    GRP 21 NRQ       214 SPT 1291           !IEXB Sensor
+ GAXP A1 IDS 0 S   #A30                 TYP 'S' GRP 21               SPT 1300 IDP  A30  !Achse 30
+
+!*!Label PE x.2 - GRP 12,42,22
+ GAXP A2 IDS 0 S   #A10                 TYP 'S' GRP 12 NRQ       121 SPT 2100 IDP A10   !Axis 10
+ GAXP A2 IDS 0 S   #A10+0.225                   GRP 12 NRQ       121 SPT 2110
+ GAXP A2 IDS 0 S   #A10+2.0                     GRP 12 NRQ       122 SPT 2120           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20-4.0                     GRP 12 NRQ       122 SPT 2140           BEZ 'G_NGSX_FT12_BU1100_0+G_NGSY_FT12_BU1100_0' !Measuring point Tiltmeter
+ GAXP A2 IDS 0 S   #A20-2.6                     GRP 12 NRQ       124 SPT 2170           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20-0.1             TYP 'J' GRP 42 NRQ         2 SPT 2190           !Axis 20 Joint
+ GAXP A2 IDS 0 S   #A20                 TYP 'S' GRP 42 NRQ         2 SPT 2200 IDP A20   !Axis 20
+ GAXP A2 IDS 0 S   #A20+0.1             TYP 'J' GRP 22 NRQ       222 SPT 2210           !Axis 20 Joint
+ GAXP A2 IDS 0 S   #A20+0.3                     GRP 22 NRQ       222 SPT 2220           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A20+2.6                     GRP 22 NRQ       223 SPT 2230           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A20+3.90                    GRP 22 NRQ       223 SPT 2240           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A20+4                       GRP 22 NRQ       223 SPT 2250           BEZ 'G_NGSX_FT22_BU0400_0+G_NGSY_FT22_BU0400_0' !Measuring point Tiltmeter
+ GAXP A2 IDS 0 S   #A20+7.50                    GRP 22 NRQ       223 SPT 2260           !IEXB Sensor
+ GAXP A2 IDS 0 S   24.3                         GRP 22 NRQ       223 SPT 2280           !Measuring point load test
+ GAXP A2 IDS 0 S   #A30-3.90                    GRP 22 NRQ       223 SPT 2281           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A30-0.79                    GRP 22 NRQ       224 SPT 2290           !Change in reinforcement
+ GAXP A2 IDS 0 S   #A30-0.30                    GRP 22 NRQ       224 SPT 2291           !IEXB Sensor
+ GAXP A2 IDS 0 S   #A30                 TYP 'S' GRP 22               SPT 2300 IDP A30   !Axis 30
+
+!*!Label PE x.3 - GRP 13,43,23
+ GAXP A3 IDS 0 S   #A10                 TYP 'S' GRP 13 NRQ       131 SPT 3100 IDP A10   !Axis 10
+ GAXP A3 IDS 0 S   #A10+0.225                   GRP 13 NRQ       131 SPT 3110
+ GAXP A3 IDS 0 S   #A10+2.0                     GRP 13 NRQ       132 SPT 3120           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20-4                       GRP 13 NRQ       132 SPT 3140           BEZ 'G_NGSX_FT13_BU1100_0+G_NGSY_FT13_BU1100_0' !Measuring point Tiltmeter
+ GAXP A3 IDS 0 S   #A20-2.6                     GRP 13 NRQ       134 SPT 3170           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20-0.1             TYP 'J' GRP 43 NRQ         3 SPT 3190           !Axis 20  Joint
+ GAXP A3 IDS 0 S   #A20                 TYP 'S' GRP 43 NRQ         3 SPT 3200 IDP A20   !Axis 20
+ GAXP A3 IDS 0 S   #A20+0.1             TYP 'J' GRP 23 NRQ       232 SPT 3210           !Axis 20  Joint
+ GAXP A3 IDS 0 S   #A20+0.3                     GRP 23 NRQ       232 SPT 3220           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A20+2.6                     GRP 23 NRQ       233 SPT 3230           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A20+3.90                    GRP 23 NRQ       233 SPT 3240           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A20+4                       GRP 23 NRQ       233 SPT 3250           BEZ 'G_NGSX_FT23_BU0400_0+G_NGSY_FT23_BU0400_0' !Measuring point Tiltmeter
+ GAXP A3 IDS 0 S   #A20+7.50                    GRP 23 NRQ       233 SPT 3260           !IEXB Sensor
+ GAXP A3 IDS 0 S   24.3                         GRP 23 NRQ       233 SPT 3280           !Measuring point load test
+ GAXP A3 IDS 0 S   #A30-3.90                    GRP 23 NRQ       233 SPT 3281           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A30-0.79                    GRP 23 NRQ       234 SPT 3290           !Change in reinforcement
+ GAXP A3 IDS 0 S   #A30-0.30                    GRP 23 NRQ       234 SPT 3291           !IEXB Sensor
+ GAXP A3 IDS 0 S   #A30                 TYP 'S' GRP 23           234 SPT 3300 IDP A30   !Axis 30
+
+
+!*!Label Plate elements - GRP 45
+!Auxiliary points
+SPT 1101 X #A10   Y -3*#B_FT/2
+SPT 2101 X #A10   Y -#B_FT/2
+SPT 2102 X #A10   Y #B_FT/2
+SPT 3101 X #A10   Y 3*#B_FT/2
+
+SPT 1301 X #A30   Y -3*#B_FT/2
+SPT 2301 X #A30   Y -#B_FT/2
+SPT 2302 X #A30   Y #B_FT/2
+SPT 3301 X #A30   Y 3*#B_FT/2
+
+!Auxiliary lines
+SLN 1001 NPA 1101 1301
+SLN 1002 NPA 1100 1300
+SLN 1003 NPA 2101 2301
+SLN 1004 NPA 2100 2300
+SLN 1005 NPA 2102 2302
+SLN 1006 NPA 3100 3300
+SLN 1007 NPA 3101 3301
+
+!Couplings axis 10 abutment wall-superstructure
+SLN 1010 NPA 1101 1100 XFLG PLA
+SLNS 97 FIX F REFT >SLN 1100
+SLN 1011 NPA 1100 2101 XFLG PLA
+SLNS 97 FIX F REFT >SLN 1100
+SLN 1012 NPA 2101 2100 XFLG PLA
+SLNS 97 FIX F REFT >SLN 2100
+SLN 1013 NPA 2100 2102 XFLG PLA
+SLNS 97 FIX F REFT >SLN 2100
+SLN 1014 NPA 2102 3100 XFLG PLA
+SLNS 97 FIX F REFT >SLN 3100
+SLN 1015 NPA 3100 3101 XFLG PLA
+SLNS 97 FIX F REFT >SLN 3100
+
+SLN 1020 NPA 1301 1300
+SLN 1021 NPA 1300 2301
+SLN 1022 NPA 2301 2300
+SLN 1023 NPA 2300 2302
+SLN 1024 NPA 2302 3300
+SLN 1025 NPA 3300 3301
+
+!Definition of plate
+let#t   0.17[m]   !Thickness of T-beam slab
+let#Aus 'MITT'
+
+SAR 1 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1001 T #t
+     NL         1002
+     NL         1010
+     NL         1020
+
+SAR 2 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1002 T #t
+     NL         1003
+     NL         1011
+     NL         1021
+
+SAR 3 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1003 T #t
+     NL         1004
+     NL         1012
+     NL         1022
+
+SAR 4 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1004 T #t
+     NL         1005
+     NL         1013
+     NL         1023
+
+SAR 5 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1005 T #t
+     NL         1006
+     NL         1014
+     NL         1024
+
+SAR 6 GRP 45 MNR 5 NRA 7 QREF #Aus  KR POSX H1 0.15
+SARB AUS          NL                               1006 T #t
+     NL         1007
+     NL         1015
+     NL         1025
+
+!*!Label Support pre-stressing bed - GRP 90,91 - CS
+
+#define supportSp
+    let#dhspring 0.01[m]
+    loop 3
+             SPT  #node+3000   REF PT #node   Z #H-#HOB+#dhspring
+             SPTP F REF #node GRP #GRP      !coupling
+             SPTS #node+3001     DZ 1 CP     #dz   CM 1  GRP #GRP
+             SPTS #node+3002     DX 1 CP     #dq   CM 1  GRP #GRP
+             SPTS #node+3003     DY 1 CP     #dq   CM 1  GRP #GRP
+     let#node  #node+1000
+     endloop
+#enddef
+
+    let#dhspring 0.01[m]
+
+GRUP 90  !support for all PEs (except PE 1.1)
+let#GRP                   90
+
+let#node                1190
+let#dq                   1e7
+let#dz                   1e7
+#include supportSp
+
+let#node                1100
+let#dq                     1
+let#dz                   1e7
+#include supportSp
+
+let#node               1210
+let#dq                  1e7
+let#dz                  1e7
+#include supportSp
+
+let#node                 1300
+let#dq                      1
+let#dz                    1e7
+#include supportSp
+
+
+GRUP 91  !support for PE 1.1
+let#GRP                   91
+let#node                1140
+let#dq                   1e7
+let#dz                   1e7
+SPT  #node+3000   REF PT #node   Z #H-#HOB+#dhspring
+             SPTP F REF #node GRP #GRP     !coupling
+             SPTS #node+3001  DZ 1 CP  #dz CM 1  GRP #GRP
+             SPTS #node+3002  DX 1 CP  1   CM 1  GRP #GRP
+             SPTS #node+3003  DY 1 CP  1   CM 1  GRP #GRP
+
+!*!Label Temporary support before CIPC - GRP 95 - CS
+
+#define supportLG
+    let#dhspring 0.03[m]
+    loop 3
+             SPT  #node+3005   REF PT #node   Z #H-#HOB+#dhspring XFLG A
+             SPTP F REF #node GRP #GRP     !coupling
+             SPTS #node+3006     DZ 1 CP  #dz  CQ #dq GRP #GRP
+             SPTS #node+3007     DX 1 CP  #dq   CM 1  GRP #GRP
+             SPTS #node+3008     DY 1 CP  #dq   CM 1  GRP #GRP
+     let#node  #node+1000
+     endloop
+#enddef
+
+LET#GRP                   95
+
+LET#node                1100
+LET#dq                     1
+LET#dz                   1e7
+#include supportLG
+
+LET#node               1170
+LET#dq                  1e7
+LET#dz                  1e7
+#include supportLG
+
+let#node               1230
+let#dq                  1e7
+let#dz                  1e7
+#include supportLG
+
+!*! Simplified support axis 30 - GRP 96
+
+#define elastomeric bearing
+let#dhspring               0.05[m]
+    loop 3
+             SPT  #node+3005   REF PT #node   Z #H-#HOB+#dhspring
+             SPTP F REF #node GRP #GRP
+                SPTS #node+3006     DZ 1 CP  #dz  GRP #GRP
+                SPTS #node+3007     DX 1 CP  #dq  GRP #GRP
+                SPTS #node+3008     DY 1 CP  #dq  GRP #GRP
+
+     let#node  #node+1000
+endloop
+#enddef
+
+
+GRUP 96 !Support Axis 30 (elastomeric bearing)
+let#GRP                      96
+
+let#node                   1300
+let#dq                     #kh30
+let#dz                     #kz30
+#include elastomeric bearing
+
+
+!*! Abutment wall axis 10 - GRP 97
+
+GRUP 97
+let#GRP      97
+
+let#HW        2.7[m]    !Height abutment wall
+let#t         0.45[m]   !tickness abutment wall
+
+
+SPT 1105 REF PT 1101 Z #HW   !Structural points below abutment wall
+SPT 3105 REF PT 3101 Z #HW
+
+SLN 1030 NPA 1101 1105
+SLN 1031 NPA 3101 3105
+
+!bearing stifness
+LET#cpx     1E10
+LET#cpy     1E10
+LET#cpz     1E10
+LEt#cd      1E10
+
+SLN 1032 NPA 1105 3105
+SLNS DRX 1 CA #kh10 CD 0 GRP 97
+SLNS DRY 1 CA #cpy  CD #kr10 GRP 97
+SLNS DRZ 1 CA #kz10 CD 0 GRP 97
+
+SAR 8 T #t GRP 97 MNR 9 NRA 7 QREF #Aus  KR POSX
+SARB AUS        NL 1010,1011,1012,1013,1014,1015
+     NL       1030
+     NL       1031
+     NL       1032
+
+
+!*! Piers Axis 20 - GRP 98
+GRUP 98
+let#GRP              98
+let#UKpier           2.2[m] !Height of piers from the top of the foundation to the bottom of the web of the PEs
+
+!bearing stiffness
+LET#cpz 1E10
+LET#cpy 1E10
+LET#cpx 1E10
+LET#cm 1E10
+
+!Pier 1
+SPT 1201 REF PT 1200 Z #H-#HOB
+SPTP F REF 1200 GRP #GRP
+SPT 1202 REF PT 1201 Z #UKpier
+    SPTS  TYP CXX,CYY,CZZ CP #kh20,#cpy,#kz20 CM #kr20 GRP 98
+SLN 1041 NPA 1201 1202 QNR 4 GRP #GRP
+
+!Pier 2
+SPT 2201 REF PT 2200 Z #H-#HOB
+SPTP F REF 2200 GRP #GRP
+SPT 2202 REF PT 2201 Z #UKpier
+    SPTS TYP CXX,CYY,CZZ CP #kh20,#cpy,#kz20 CM #kr20 GRP 98
+SLN 1042 NPA 2201 2202 QNR 4 GRP #GRP
+
+!Pier 3
+SPT 3201 REF PT 3200 Z #H-#HOB
+SPTP F REF 3200 GRP #GRP
+SPT 3202 REF PT 3201 Z #UKpier
+    SPTS TYP CXX,CYY,CZZ CP #kh20,#cpy,#kz20 CM #kr20  GRP 98
+SLN 1043 NPA 3201 3202 QNR 4 GRP #GRP
+
+ENDE
+
+!+!Chapter 02 Pre-stressing
++PROG TENDON urs:4
+KOPF Clean Database
+VDEL AXES 0 SGEO 0 TEND 0
+ENDE
+
++PROG TENDON urs:9
+KOPF Prestressing with Subsequent Bond
+ECHO VOLL JA
+STEU WARN 90420
+ECHO SGEO VOLL
+ECHO AXES voll
+
+
+!Prestressing technology (admission nr. Z-13.71-130839)
+SYSP NRSV 21 MAT 21 ZV 1116 AZ 4*150 LITZ 4 MINR 4.1 BETA 0.3 MUE 0.2 EXZ 7[mm] SS 6[mm] SF 0 LANK 0.37 LFIX 0.37 DA 52 BEZ 'subsequent bond '
+
+
+
+!*!Label Tendon PE 1.1 subsequent bond
+AXES NRH 11 TYP REFX A1 ART STAB
+HOCH NRH 11 TYP KNOT S 1100,1140 SF 1,2
+
+SGEO NRG 11 NRH 11 NRSV 21
+ZPUV    S      U     V       DVS  Art  TYP=REFX
+        0.00   0   0.140     -    SPAN
+        0.69   0   0.170
+        1.59   0   0.209
+        2.49   0   0.248
+        3.39   0   0.285
+        4.29   0   0.317
+        5.19   0   0.342
+        6.09   0   0.361
+        6.99   0   0.371
+        7.89   0   0.372
+        8.79   0   0.362
+        9.69   0   0.341
+        10.59   0   0.314
+        11.00   0   0.300  -0.038  KOPP
+
+
+AXES NRH 12 TYP REFX A1 ART STAB
+HOCH NRH 12 TYP KNOT S 1140,1190 SF 1,2
+
+SGEO NRG 12 NRH 12 NRSV 21
+ZPUV    S      U     V       DVS    Art  TYP=FELD
+
+        1      0     0.3    -0.038  KOPP
+        2      0     0.14     -     SPAN
+
+
+CS IBA1 16 IBA2 22
+VSIG LI ANWS 9  KAPA 0 k1 0.8 k2 0.9 k3 0.60
+TEND NRS 11 NRG 11 NSP 1 LF 13 TYP FELD VON 1 BIS 2 SVON 0 SBIS 0 WVON 0 WBIS 0
+
+CS IBA1 13 IBA2 22
+VSIG RE ANWS 9  KAPA 0 k1 1 k2 0.95
+TEND NRS 12 NRG 12 NSP 1 LF 14 TYP FELD VON 1 BIS 2 SVON 0 SBIS 0 WVON 0 WBIS 0
+
+PLOT GEOA NR 11 FAKH  5 TYPG ALL ANZ 1
+PLOT GEOA NR 12 FAKH  5 TYPG ALL ANZ 1
+PLOT SPAA NR 11 FAKH  5 TYPG ALL ANZ 1
+PLOT SPAA NR 12 FAKH  5 TYPG ALL ANZ 1
+PLOT FAKT NR 11 FAKH 20
+PLOT FAKT NR 12 FAKH 20
+
+!*!Label Tendon PE 2.1 subsequent bond
+
+AXES NRH 21 TYP AUTO 1210 1300 ART STAB
+HOCH NRH 21 TYP KNOT S 1210,1300 SF 1,2
+SGEO NRG 21 NRH 21 NRSV 21
+ZPUV  S      U   V      DVS   ART   TYP=REFX
+      0.00   0   0.140  -     SPAN
+      0.71   0   0.170
+      1.61   0   0.208
+      2.51   0   0.244
+      3.41   0   0.278
+      4.31   0   0.309
+      5.21   0   0.335
+      6.11   0   0.356
+      7.01   0   0.371
+      7.91   0   0.379
+      8.81   0   0.378
+      9.71   0   0.366
+     10.61   0   0.342
+     11.51   0   0.310
+     12.41   0   0.271
+     13.31   0   0.226
+     14.21   0   0.178
+     14.90   0   0.140  -     FEST
+CS IBA1 12 IBA2 14
+VSIG LI ANWS 9 KAPA 0 K3 1300
+TEND NRS 21 NRG 21 NSP 1 LF 12 TYP FELD VON 1 BIS 2 SVON 0 SBIS 0 WVON 0 WBIS 0
+
+!Tendon plots
+SIZE URS
+ECHO PLOT VOLL
+SCHR H2 0.18
+PLOT GEOA NR 21 FAKH  5 TYPG ALL ANZ 1
+PLOT SPAA NR 21 FAKH  5 TYPG ALL ANZ 1
+PLOT FAKT NR 21 FAKH 20
+
+ENDE
+
++PROG TENDON urs:5
+KOPF Prestressing with Immediate Bond
+ECHO SYSP VOLL
+STEU WARN 90420
+
+!Prestressing technology (admission nr. Z-12.3-84)
+SYSS NRSV 20 MAT 20 ZV 172.98 AZ 1*93 LITZ 1 BEZ 'immediate bond'
+SYSS NRSV 23 MAT 20 ZV 279 AZ 150 LITZ 1 BEZ 'immediate bond Smart tendon 0.62'
+
+#define VsV
+AXES NRH #Achse TYP REFX #A ART STAB
+HOCH NRH #Achse TYP KNOT S #p1,#p2 SF 1,2
+
+!Tendon geometry
+SGEO NRG #Achse NRH #Achse NRSV #NRSV
+    !Definition of the tendon course:
+    ZPUV    S     U     V   TYP=FELD      !#h is the height of the tendon position
+           #s1   #e    #h
+           #s2   #e    #h
+           #s3   #e    #h
+
+    !Construction phases
+    CS IBA1 #BA IBA2 #BA  !Prestressing with immediate bond   (IBA1 = IBA2)
+
+    !Assignment of tendons
+    VDAT EINL #EinL ETYP LINE         !Linear force transmission on both sides
+    VSIG RE ANWS 'T' KAPA 0 K3 #k3   !reduced pre-stressing to 1300 N/mm²
+    TEND NRS #Achse NRG #Achse NSP 1 TYP FELD LF #LF VON 1 BIS 2 SVON #SVON SBIS #SBIS
+#enddef
+
+
+!*!Label Tendon PE 1.1 immediate bond
+LET#A               "A1"
+LET#p1              1100
+LET#p2              1190
+LET#NRSV            20
+LET#k3              1301.08
+
+LET#BA              17
+LET#LF              15
+LET#EinL            0.64*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.445
+LET#e               0.0225
+LET#Achse           111
+#include VsV
+LET#h               0.445
+LET#e               -0.0225
+LET#Achse           112
+#include VsV
+
+
+
+!*!Label Tendon PE 1.2 immediate bond
+LET#A               "A2"
+LET#p1              2100
+LET#p2              2190
+LET#NRSV            20
+LET#k3              1301.08
+
+LET#BA              11
+LET#LF              11
+LET#EinL            0.64*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+!bottom layer
+
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.405
+
+LET#e               0.0675
+LET#Achse           121
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           122
+
+#include VsV
+
+LET#e               0.0225
+LET#Achse           123
+
+#include VsV
+LET#e               -0.0225
+LET#Achse           124
+#include VsV
+
+!top outer layer
+LET#SVON            1.5         !w/o bond for 1.5 m
+LET#SBIS           -1.5         !w/o bond for 1.5 m
+
+LET#h               0.36
+
+LET#e               0.0675
+let#Achse           125
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           126
+#include VsV
+
+!top inner layer
+LET#SVON            3         !w/o bond for 3 m
+LET#SBIS           -3         !w/o bond for 3 m
+
+LET#e               0.0225
+LET#Achse           127
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           128
+#include VsV
+
+
+!*!Label Tendon PE 1.3 immediate bond
+LET#A               "A3"
+LET#p1              3100
+LET#p2              3190
+LET#NRSV            20
+LET#k3              1301.08
+
+LET#BA              11
+LET#LF              11
+LET#EinL            0.64*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+!bottom layer
+
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.405
+
+LET#e               0.0675
+LET#Achse           131
+#include VsV
+
+LET#e               -0.0675
+LEt#Achse           132
+#include VsV
+
+LET#e               0.0225
+LET#Achse           133
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           134
+#include VsV
+
+!top outer layer
+LET#SVON            1.5         !w/o bond for 1.5 m
+LET#SBIS           -1.5         !w/o bond for 1.5 m
+
+LET#h               0.36
+
+LET#e               0.0675
+LET#Achse           135
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           136
+#include VsV
+
+!top inner layer
+LET#SVON            3         !w/o bond for 3 m
+LET#SBIS           -3         !w/o bond for 3 m
+
+LET#e               0.0225
+LET#Achse           137
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           138
+#include VsV
+
+!*!Label Tendon PE 2.1 immediate bond
+LET#A               "A1"
+LET#p1              1210
+LET#p2              1300
+
+LET#BA              11
+LET#LF              11
+let#EinL            0.58*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.445
+LET#e               0.0225
+LET#NRSV            23             !Litze 1 = SmartTendon
+LET#k3              806.67
+LET#Achse           211
+#include VsV
+
+LET#NRSV            20
+LET#e               -0.0225
+LET#k3              1301.08
+LET#Achse           212
+#include VsV
+
+
+!*!Label Tendon PE 2.2 immediate bond
+LET#A               "A2"
+LET#p1              2210
+LET#p2              2300
+LET#NRSV            20
+LET#k3              1301.08
+
+LET#BA              11
+LET#LF              11
+let#EinL            0.51*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+!bottom layer
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.36
+
+LET#e               0.0675
+LET#Achse           221
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           222
+#include VsV
+
+let#e               0.0225
+let#Achse           223
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           224
+#include VsV
+
+!top outer layer
+LET#SVON            1.5         !w/o bond for 1.5 m
+LET#SBIS           -1           !w/o bond for 1.0 m
+
+LET#h               0.405
+
+LET#e               0.0675
+LET#Achse           225
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           226
+#include VsV
+
+!top inner layer
+LET#SVON            3         !w/o bond for 3 m
+LET#SBIS           -2         !w/o bond for 2 m
+
+LET#e               0.0225
+LET#Achse           227
+#include VsV
+
+LET#e               -0.0225
+LET#Achse            228
+#include VsV
+
+
+
+!*!Label Tendon PE 2.3 immediate bond
+LET#A               "A3"
+LET#p1              3210
+LET#p2              3300
+LET#NRSV            20
+LET#k3              1301.08
+
+LET#BA              11
+LET#LF              11
+let#EinL            0.51*#f_lpt
+
+LET#s1              1
+LET#s2              1.5
+LET#s3              2
+
+!bottom layer
+LET#SVON            0
+LET#SBIS            0
+
+LET#h               0.36
+
+LET#e               0.0675
+LET#Achse           231
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           232
+#include VsV
+
+LET#e                0.0225
+LET#Achse           233
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           234
+#include VsV
+
+!top outer layer
+LET#SVON            1.5         !w/o bond for 1.5 m
+LET#SBIS           -1           !w/o bond for 1.0 m
+
+LET#h               0.405
+LET#e               0.0675
+LET#Achse           235
+#include VsV
+
+LET#e               -0.0675
+LET#Achse           236
+#include VsV
+
+!obere Lage innen
+LET#SVON            3         !w/o bond for 3 m
+LET#SBIS           -2         !w/o bond for 2 m
+
+LET#e               0.0225
+LET#Achse           237
+#include VsV
+
+LET#e               -0.0225
+LET#Achse           238
+#include VsV
+
+ENDE
+
+!+!Chapter 3 Actions
++PROG SOFILOAD urs:7
+KOPF Partial Safety Coefficients and Combination Coefficients
+
+!Partial safety coefficients and combination coefficients for road bridges
+ACT  TYP  GAMU  GAMF  PSI0  PSI1  PSI2  GAMA  PART  SUP   BEZ
+     G    1.35  1.00  1.00  1.00  1.00  1.00  G     PERM  'Permanent loads '
+     G_1  1.35  1.00  1.00  1.00  1.00  1.00  G     PERM  'Dead load'
+     G_2  1.35  1.00  1.00  1.00  1.00  1.00  G     PERM  'Additional dead load'
+     P    1.00  1.00  1.00  1.00  1.00  1.00  P     PERM  'Pre-stressing'
+     C    1.00  1.00  1.00  1.00  1.00  1.00  G     PERM  'Creep and shrinkage'
+     L_U  1.35  0.00  0.40  0.40  0.20  0.00  Q_1   COND  'Uniform load LM1'
+     L_T  1.35  0.00  0.75  0.75  0.20  0.00  Q_1   EXCL  'Tandem load LM1'
+     L_F  1.35  0.00  0.40  0.40  0.00  0.00  Q_1   COND  'Uniform load Sidewalks'
+     T    1.35  0.00  0.60  0.60  0.50  1.00  Q_2   EXCL  'Temperature'
+     ZF   1.00  0.00  1.00  1.00  1.00  1.00  G     COND  'settlements SLS'
+     SF   1.00  0.00  1.00  1.00  1.00  1.00  G     COND  'settlements ULS'
+
+ENDE
+
++PROG SOFILOAD urs:6
+KOPF LC 1: Dead Load T-beams
+
+    LF 1 TYP G FAKG 1.0 BEZ 'Dead load superstructure'
+
+ENDE
+
+!Definition slepper
+#define schwelle
+
+   Let#x_1    #x-#breite/2-0.08                   !0.08 due to additional load propagation at an angle of 45° up to the center of the roadway slab
+   Let#y_1    -#laenge/2-0.08
+
+   Let#x_2    #x+#breite/2+0.08
+   Let#y_2    -#laenge/2-0.08
+
+   Let#x_3    #x+#breite/2+0.08
+   Let#y_3    #laenge/2+0.08
+
+   Let#x_4    #x-#breite/2-0.08
+   Let#y_4    #laenge/2+0.08
+
+   AREA REF QGRP NR 45 TYP PG P1 #GSchwelle #x_1 #y_1     P2 #GSchwelle #x_2 #y_2     P3 #GSchwelle #x_3 #y_3     P4 #GSchwelle #x_4  #y_4   !area sleeper
+
+#enddef
+
++PROG SOFILOAD URS:8
+KOPF LC 2 Additional Load Sleeper
+
+LF 2 TYP G_2  BEZ 'Additional load sleeper'
+
+Let#laenge     2.6                              !Length
+Let#width      0.3                              !Width
+let#tSleeper    0.105                           !Weight timer sleeper in tonnes
+let#cSleeper    0.28                            !Weight conrete sleeper in tonnes
+
+let#xdavor    0.125
+let#xdanach    1.14
+let#x         0.125+0.08             !x-coordinate of first sleeper
+let#breite     0.25
+Let#GSchwelle  #tSleeper*9.81/((#laenge+2*0.08)*(#breite+2*0.08))   !Dead load timber sleeper kN/m
+#include schwelle                    !First Sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.08
+let#breite     0.25
+let#x    0.125+#xdavor
+#include schwelle                    !Second sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.06
+let#breite      0.3
+Let#GSchwelle  #cSleeper*9.81/((#laenge+2*0.08)*(#breite+2*0.08))   !Dead load concrete sleeper kN/m
+let#x   #x+#xdavor
+#include schwelle                    !Third sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.15
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.96
+let#x   #x+#xdavor
+#include schwelle                    !Fünfte Schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.0
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.03
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.91
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.79
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.79
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.74
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.96
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.97
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.97
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.59
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.02
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.02
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schwelle
+
+let#xdavor #xdanach
+let#xdanach    0.74
+let#x   #x+#xdavor
+#include schwelle
+
+
+ENDE
+
+!Definition Rail
+#define schiene
+
+   let#masse  54*(#xdavor/2+#xdanach/2)         !Mass of a rail (S54 profile with m= 54 kg/m) with half distance between previous and next sleeper as load application area
+   let#GSchiene #masse*0.00981/((0.13+2*0.08)*(#breite+2*0.08))   !Dead load rail
+
+   Let#x_1    #x-#breite/2-0.08
+   Let#y_1    -0.685-0.13-0.08[m]
+
+   Let#x_2    #x+#breite/2+0.08
+   Let#y_2    -0.685-0.13-0.08[m]
+
+   Let#x_3    #x+#breite/2+0.08
+   Let#y_3    -0.685+0.08[m]
+
+   Let#x_4    #x-#breite/2-0.08
+   Let#y_4    -0.685+0.08[m]
+
+   AREA REF QGRP NR 45 TYP PG P1 #GSchiene #x_1 #y_1     P2 #GSchiene #x_2 #y_2     P3 #GSchiene #x_3 #y_3     P4 #GSchiene #x_4  #y_4   !area rail 1
+   AREA REF QGRP NR 45 TYP PG P1 #GSchiene #x_1 -#y_1    P2 #GSchiene #x_2 -#y_2    P3 #GSchiene #x_3 -#y_3    P4 #GSchiene #x_4  -#y_4  !area rail 2
+
+#enddef
+
++PROG SOFILOAD URS:27
+KOPF LC 3 Additional Load Rail
+
+LF 3 TYP G_2  BEZ 'Additional Load Rail'
+
+let#xdavor    0.125*2
+let#xdanach    1.14
+let#x         0.125+0.08            !x-Coordinate first sleeper
+let#breite     0.25
+#include schiene                    !First sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.08
+let#breite     0.25
+let#x    0.125+#xdavor
+#include schiene                    !Second sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.06
+let#breite      0.3
+let#x   #x+#xdavor
+#include schiene                    !Third sleeper
+
+let#xdavor #xdanach
+let#xdanach    1.15
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.96
+let#x   #x+#xdavor
+#include schiene                    !Fünfte Schwelle
+
+let#xdavor #xdanach
+let#xdanach    1.0
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.03
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.91
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.79
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.79
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.74
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.96
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.97
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.97
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.59
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.02
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.02
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.00
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.98
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    1.01
+let#x   #x+#xdavor
+#include schiene
+
+let#xdavor #xdanach
+let#xdanach    0.74*2
+let#x   #x+#xdavor
+#include schiene
+
+ENDE
+
++PROG SOFILOAD urs:56
+KOPF LC 100 Load Test
+
+LET#b   0.2[m]
+LET#l   0.2[m]
+LET#P   50/(0.2*0.2)  !Load used for load capacity iteration
+
+
+LET#LF  100
+LET#x   24.3[m]     !Position of load in x-direction
+
+    !Definition of the contact surface of the hydraulic cylinder
+       Let#x_1   #x-#l/2
+       Let#y_1   -#B_FT-#b/2
+
+       Let#x_2   #x_1
+       Let#y_2   #y_1+#b
+
+       Let#x_3   #x_1+#l
+       Let#y_3   #y_1+#b
+
+       Let#x_4   #x_1+#l
+       Let#y_4   #y_1
+
+    LF  #LF BEZ "Load test #(#x,6.2) m" TYP NONE
+        AREA REF QGRP NR 45 TYP PG P1 #P #x_1 #y_1 P2 #P #x_2 #y_2 P3 #P #x_3 #y_3 P4 #P #x_4 #y_4
+
+ENDE
+
+
+#define Belastungsfahrzeug
+
+AREA QGRP NR 45 PROJ zz TYP pzz p1 #p x1 #xm-#l/2-#b/2  -#spur/2-#b/2       x2 #xm-#l/2-#b/2  -#spur/2+#b/2     x3 #xm-#l/2+#b/2  -#spur/2+#b/2     x4 #xm-#l/2+#b/2  -#spur/2-#b/2
+
+AREA QGRP NR 45 PROJ zz TYP pzz p1 #p x1 #xm+#l/2-#b/2  -#spur/2-#b/2       x2 #xm+#l/2-#b/2  -#spur/2+#b/2     x3 #xm+#l/2+#b/2  -#spur/2+#b/2     x4 #xm+#l/2+#b/2  -#spur/2-#b/2
+
+AREA QGRP NR 45 PROJ zz TYP pzz p1 #p x1 #xm+#l/2-#b/2  #spur/2-#b/2         x2 #xm+#l/2-#b/2  #spur/2+#b/2     x3 #xm+#l/2+#b/2  #spur/2+#b/2      x4 #xm+#l/2+#b/2  #spur/2-#b/2
+
+AREA QGRP NR 45 PROJ zz TYP pzz p1 #p x1 #xm-#l/2-#b/2  #spur/2-#b/2         x2 #xm-#l/2-#b/2  #spur/2+#b/2     x3 #xm-#l/2+#b/2  #spur/2+#b/2      x4 #xm-#l/2+#b/2  #spur/2-#b/2
+
+#enddef
+
++PROG SOFILOAD urs:10
+KOPF LC 200+ Load test reference phase
+
+LET#l          #l_ach
+LET#spur       #spur
+LET#b          #b_rad
+LET#p #m_fz*9.81/4/(#b*#b)
+
+!*!Label LS 2
+LF 202 TYP None BEZ "Belastungsfahrt LS 2"
+LET#xm          26.25[m]
+#include Belastungsfahrzeug
+
+!*!Label LS 3
+LF 203 TYP None BEZ "Belastungsfahrt LS 3"
+LET#xm          22.5[m]
+#include Belastungsfahrzeug
+
+!*!Label LS 4
+LF 204 TYP None BEZ "Belastungsfahrt LS 4"
+LET#xm          18.75[m]
+#include Belastungsfahrzeug
+
+!*!Label LS 5
+LF 205 TYP None BEZ "Belastungsfahrt LS 5"
+LET#xm          7.5[m]
+#include Belastungsfahrzeug
+
+ENDE
+
+! the Vehicle crossing in the reference stage
++PROG SOFILOAD urs:19
+KOPF LC 300+ Vehicle - lighter - crossing - Influence lines
+STEU WARN 909
+
+LET#l          #l_ach
+LET#spur       #spur
+LET#b          #b_rad
+LET#p (#m_fz-0.8)*9.81/(4*(#b*#b))
+
+LET#step 0.5 ! vehicle step in meters
+
+LOOP#i 60
+    LET#xm  0+#l/2+#b/2+0.5*#i
+    LET#LF  301+#i
+    LF #lf TYP NONE BEZ "Influence line xm = #(#xm,6.2) m"
+    #include Belastungsfahrzeug
+ENDLOOP
+
+ENDE
+
+
++PROG SOFILOAD urs:20
+KOPF LC 400+ Temperature loads
+
+LET#dT_N    1
+LET#dT_M    1
+
+LF 401 TYP None BEZ "dT_N Überbau"
+    STAB GRP (10 13 1) TYP DT PA #dT_N
+    STAB GRP (21 23 1) TYP DT PA #dT_N
+    STAB GRP (41 43 1) TYP DT PA #dT_N
+
+LF 402 TYP None BEZ "dT_M Überbau"
+    STAB GRP (10 13 1) TYP DTZ PA #dT_M
+    STAB GRP (21 23 1) TYP DTZ PA #dT_M
+    STAB GRP (41 43 1) TYP DTZ PA #dT_M
+
+ENDE
+
+
++PROG ASE urs:15
+KOPF Linear-elastic w/o CSM
+STEU WARN 147
+
+GRUP  - BA 998
+GRUP 90 NEIN
+GRUP 91 NEIN
+GRUP 95 NEIN
+
+GRP2 45 QEMX 0.001 QUEA 0.001      !Deactivate stiffness of plate elements in x-direction
+  STEU SOLV
+  STEU WARN 185,197,335,398,399
+  LF 1
+  LF 2
+  LF 3
+  LF 100
+  LF (202 204 1)
+  LF (301 360 1)
+  LF 401
+  LF 402
+
+ENDE
+
+!+!Chapter 04 Construction Process
++PROG CSM urs:12
+KOPF Construction Process
+STEU OPT  EG        WERT                                     AUTO
+STEU OPT  KRIE      WERT                                     RKRI
+STEU OPT  RELZ      WERT                                     AUTO
+STEU OPT  krag      WERT                                     12
+$STEU OPT  krag      WERT 2
+STEU ASE  text      'if xxx_ba_csm<20 ; steu krag 0 ; endif'
+STEU OPT  SPEI      WERT                                      1
+STEU OPT  GPCS      WERT                                      0
+STEU OPT  EMOD      WERT                                      0
+STEU OPT  GUSS      WERT                                      1
+UEBE 50
+
+$UEBE 50
+$GRP0 11
+$GRP0 12
+$GRP0 13
+$GRP0 21
+$GRP0 22
+$GRP0 23
+
+STEU WARN   197
+STEU WARN   116
+STEU WARN   132
+STEU WARN 12149
+STEU WARN 70121
+
+!Constrction phases
+BA 10 TYP  G_1 BEZ 'Dead load prefabrication plant'
+
+BA 11 TYP  P_0 BEZ 'Prestressing with immediate bond, except PE 1.1'
+BA 12 TYP  P_1 BEZ 'Prestressing with subsequent bond PE 2.1.'
+BA 13 TYP  P_1 BEZ 'Partial prestressing with subsequent bond PE 1.1 part 1'   FAKP  0.5145                                                                                                   ! 0.337/0.655 Spannfaktoren nach Schlupf
+!BA 14 grouting PE 2.1
+BA 15 TYP  G_1 BEZ 'Dead load PE 1.1. part 1'
+BA 16 TYP  P_1 BEZ 'Partial prestressing with subsequent bond PE 1.1 part 2' FAKP  0.4726                                                                                                   ! 0,276/0,584 Spannfaktoren nach Schlupf
+BA 17 TYP  P_0 BEZ 'Prestressing with immediate bond PE 1.1''
+
+BA 20 TYP  P_1 BEZ 'Full prestressing with subsequent bond PE 1.1 part 1' IBA1 13  FAKP  1
+BA 21 TYP  P_1 BEZ 'Full prestressing with subsequent bond PE 1.1 part 2' IBA1 16  FAKP  1
+!BA 22 grouting PE 1.1.
+BA 25 TYP  C_1 BEZ 'Creep in prefabrication plant'  T 90 RH 70 TEMP 10 NKRI 5
+
+BA 41 TYP  B   BEZ 'Relocating elastomeric bearings'
+
+
+$BA 42 TYP C_1 BEZ 'Creep after assembling PEs' T 66 RH 70 TEMP 10 NKRI 3
+
+!steps for joining the rest of the structure
+! step 43 - krag 0 placeholder
+BA 42 krag 0   TYP G_1 BEZ  'x h.s. - Adding the supports - columns, wall'
+! step 43 - krag 1 placeholder
+BA 43 krag 1   TYP G_1 BEZ  '2023-11-27 ... Assembly of all PEx h.s. - Adding the supports - cips above walls'
+$BA 44 TYP G_1   BEZ ' - Adding the supports'
+
+!creep in period 2023-11-27 -- 2024-02-01  ... 66 days
+BA 44 TYP  C_1 BEZ '2023-11-27 -- 2024-02-01 ... Creep after assembling PEs'   T  66   RH   70 TEMP 10 NKRI 3
+
+! dead load from the in-sutu concrete
+BA 45 TYP  G_1 BEZ '2024-02-01  ... G_1 Concreting cast-in-place concrete slab'
+! creep after adding the in situ concrete -21 days
+BA 47 TYP  C_1 BEZ '2024-02-01 -- 2024-02-22 ... Creep after adding the concrete layer' T 21  RH   70 TEMP 10 NKRI 1
+BA 50 TYP  B   BEZ '2024-02-22 Hardening CIPC'
+
+
+$BA 49 krag 1 TYP G_1   BEZ 'Adding the supports'
+$BA 50 TYP B   BEZ 'Hardening CIPC'
+
+
+$BA 60 TYP G_1 BEZ 'Relocation final support'
+$BA 65 TYP C_1 BEZ 'Creep after construction' T 90 RH 70 TEMP 10 NKRI 5
+BA 64 TYP  G   BEZ '2024-02-22 Scaffolding removal'
+! creep before the additional load (vehicle, rails etc...) - 25 days
+BA 65 TYP  C_1 BEZ 'Creep after construction'                                                             T    25                                                                                 RH   70 TEMP 10 NKRI 5
+
+
+BA 70 TYP  G_2 BEZ '2024-03-18 ... Instalation of tracks for the loaad vehicle ... Additional dead load'; LF   2,3
+! creep before the the load test - 2025-05-06 - 414 days
+BA 75 TYP C_2 BEZ '2024-03-18 -- 2025-05-06 ... Creep until start of load test' T 414 RH 70 TEMP 10 NKRI 10
+
+!Group table
+$PRECASTED ELEMENTS
+$GRUP 10 IBA1 15  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    15 PHIF 0
+$GRUP 11 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+$GRUP 12 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+$GRUP 13 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+$GRUP 21 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+$GRUP 22 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+GRUP 10 IBA1 15  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      15 PHIF 0
+GRUP 11 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0
+GRUP 12 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0
+GRUP 13 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0
+GRUP 21 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0
+GRUP 22 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0
+GRUP 23 IBA1 10  WBIS   -   GFIX 99999 BETT 10 ORTG  45 T0 3 FAK1 1 IBAG      10 PHIF 0                       $GRUP 23 IBA1 10  WBIS  -    GFIX 99999 BETT 10 ORTG 45 T0 3 FAK1 1 IBAG    10 PHIF 0
+
+
+$ CONCRETE el. ABOVE THE COLUMNS
+$GRUP 41 IBA1 50  WBIS  -    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG    50 PHIF 0
+$GRUP 42 IBA1 50  WBIS  -    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG    50 PHIF 0
+$GRUP 43 IBA1 50  WBIS  -    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG    50 PHIF 0
+GRUP 41 IBA1 43  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG      43 PHIF 0
+GRUP 42 IBA1 43  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG      43 PHIF 0
+GRUP 43 IBA1 43  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG      43 PHIF 0
+
+
+!CIPS Plate
+GRUP 45 IBA1 50  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG   99999 PHIF 0 QEMX 0.001 QUEA 0.001
+
+!Support in the prefabrication plant
+GRUP 90 IBA1 10  WBIS  40   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG   99999 PHIF 0                       !Support in the prefabrication plant
+GRUP 91 IBA1 10  WBIS  14   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG   99999 PHIF 0                       !Support of PE 1.1 in prestressing bed
+
+!SCAFFOLDING
+$GRUP 95 IBA1 41  WBIS 50    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG 99999 PHIF 0   !Temporary support
+GRUP 95 IBA1 41  WBIS  50   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG   99999 PHIF 0                       !Temporary support
+
+!wall A10
+GRUP 97 IBA1 42  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG      42 PHIF 0                       !Support axis 10
+!columns A20
+GRUP 98 IBA1 42  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG      42 PHIF 0                       !Support axis 20
+$GRUP 98 IBA1 42  WBIS  -    GFIX 99999 BETT 42 ORTG  - T0 7 FAK1 1 IBAG 42 PHIF 0   !Support axis 20
+!support A30
+GRUP 96 IBA1 41  WBIS   -   GFIX 99999 BETT 10 ORTG   - T0 7 FAK1 1 IBAG   99999 PHIF 0                       !elastomeric bearing axis 30
+$GRUP 96 IBA1 41  WBIS  -    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG 99999 PHIF 0   !elastomeric bearing axis 30
+$GRUP 97 IBA1 50  WBIS  -    GFIX 99999 BETT 10 ORTG  - T0 7 FAK1 1 IBAG 50 PHIF 0   !Support axis 10
+$GRUP 98 IBA1 50  WBIS  -    GFIX 99999 BETT 50 ORTG  - T0 7 FAK1 1 IBAG 50 PHIF 0   !Support axis 20
+
+ENDE
+
++apply "$(NAME)_csm.dat"
+
+!+!Chapter 05 Load tests reference phase
++PROG ASE urs:21
+KOPF Linear-elastic w/o CSM
+
+GRUP  - BA 998
+GRUP 90 NEIN
+GRUP 91 NEIN
+GRUP 95 NEIN
+
+GRP2 45 QEMX 0.001 QUEA 0.001      !Deactivate stiffness of plate elements in x-direction
+  STEU SOLV
+  STEU WARN 185,197,335,398,399
+  LF 1
+  LF 2
+  LF 3
+  LF 100
+  LF (202 205 1)
+  LF (301 360 1)
+  LF 401
+  LF 402
+
+ENDE
+
++PROG ASE urs:13
+KOPF Linear-elastic with CSM
+
+
+GRUP 'CSM' BA 84
+
+LOOP#i 4
+    LF 1202+#i TYP None
+        LC 202+#i
+ENDLOOP
+
+ENDE
+
+-PROG ASE urs:22
+KOPF Non-linear with CSM - LC 4084
+
+SYST PROB TH3 ITER 100 PLF 4084
+DEHN K1 KSV SL KSB SL
+GRUP "CSM" BA 84 T1
+GRUP 45 LINE BA 84
+
+LF 2200 FAKG 1.0
+
+ENDE
+
+-PROG ASE urs:23
+KOPF Non-linear with CSM - LC 202
+
+SYST PROB NONL ITER 100
+GRUP "CSM" BA 84
+GRUP 45 LINE BA 84
+
+
+LF 2202 FAKG 1.0
+    LC 2200
+    LC 202
+
+DEHN S1 KSV SL KSB SL
+
+ENDE
+
+
+!+!Chapter 06 Load tests
+-PROG ASE urs:17
+KOPF
+STEU WARN 70121
+ECHO LAST EXTR
+ECHO MAT EXTR
+ECHO DEHN EXTR
+
+SYST PROB NONL ITER 100
+GRUP "CSM" BA 84
+GRUP 45 LINE BA 84
+
+LF 101 FAKG 1.0 BEZ 'copy of 4084'
+    LC 4084
+
+DEHN S1 KSV SL KSB SL
+
+ENDE
+
+-PROG ASE urs:18
+KOPF
+ECHO GRUP,LAST NEIN
+STEU WARN 70121
+
+SYST PROB NONL ITER 100
+GRUP "CSM" BA 84
+GRUP 45 LINE BA 84
+
+LF 102 FAKG 1.0 BEZ 'copy of 4070'
+    LC 4070
+
+DEHN S1 KSV SL KSB SL
+
+ENDE
+
+
+
+-PROG ASE urs:14
+KOPF Simulation of Load Test
+ECHO LAST EXTR
+ECHO MAT JA
+
+STEU SOLV 4
+TRAG 25 FAK1 0.0001 DFAK 0.5 PRO 1 DMIN -0.001 FAKE -0.001 EG NEIN PRIM NEIN SLOW 4
+SYST PROB NONL ITER 100
+
+GRUP "CSM" BA 84
+GRUP 45 LINE BA 84
+
+STEU WARN 282
+STEU WARN 42
+
+LF 301 FAKG 1.0  BEZ 'Überlastung'
+    LC 4084 TRAG NEIN
+    LC 100  TRAG JA     !only increase of the vertical loadL
+
+DEHN S1 KSV SL KSB SL
+
+ENDE
+sto#lastultib #ASE_ITER(1)
+ENDE
+
+-PROG ASE urs:16
+KOPF Load-displacement-curve x = 24.3 m
+PLOT LF 301 KNR 1280 TYP FAKT RICH UZ NULL 0
+ENDE
+
+
+#include "$(NAME).results"

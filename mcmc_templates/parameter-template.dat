@@ -1,0 +1,26 @@
+! concrete parameters
+STO#E_FT1 __E_FT1__placeholder__       !E_FT1 - Youngs Modulus PE 1.x
+STO#E_FT2 __E_FT2__placeholder__       !E_FT2 - Youngs Modulus PE 2.x
+STO#E_a10 __E_a10__placeholder__       !E_a10 - Youngs Modulus abutment wall
+STO#E_a20 __E_a20__placeholder__       !E_a20 - Youngs Modulus piers axis 2
+STO#E_CIPC __E_CIPC__placeholder__      !E_CIPC - Youngs Modulus CIPC plate
+STO#E_CIPC_a20 __E_CIPC_a20__placeholder__  !E_CIPC_a20 - Youngs Modulus CIPC node axis 20
+! spring stiffnesses
+STO#kz10 __kz10__placeholder__        !kz10 - vertical spring stiffness at axis 10 (abutment wall base)
+STO#kh10 __kh10__placeholder__        !kh10 - horizontal (longitudinal) spring stiffness at axis 10
+STO#kr10 __kr10__placeholder__        !kr10 - rotational spring stiffness at axis 10
+STO#kz20 __kz20__placeholder__        !kz20 - vertical spring stiffness at axis 20 (pier base)
+STO#kh20 __kh20__placeholder__        !kh20 - horizontal spring stiffness at axis 20
+STO#kr20 __kr20__placeholder__        !kr20 - rotational spring stiffness at axis 20
+STO#kz30 __kz30__placeholder__        !kz30 - vertical spring stiffness at axis 30 (elastomeric bearing)
+STO#kh30 __kh30__placeholder__         !kh30 - horizontal (longitudinal) spring stiffness at axis 30
+
+$----  FIXED PARAMETERS -------
+STO#f_lpt 1.0       !f_lpt - transmission length of the prestressing tendons (in the case of immediate bond)
+STO#m_fz 4.9        !m_fz - total mass of the heavy vehicle, including the frame
+STO#l_ach 1.8       !l_ach - axle spacing
+STO#spur 1.435      !spur - track width
+STO#b_rad 0.4       !b_rad - side length of the square wheel contact area
+STO#dx_fz 0         !dx_fz - longitudinal offset of the vehicle relative to its target position
+$---- END - FIXED PARAMETERS ---
+
